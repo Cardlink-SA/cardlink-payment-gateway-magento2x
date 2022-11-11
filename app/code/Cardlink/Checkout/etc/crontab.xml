@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+
+    <group id="default">
+        <job instance="Cardlink\Checkout\Cron\CheckUpdate" method="execute" name="cardlink_checkout_check_update_cron">
+            <schedule>0 */8 * * *</schedule>
+        </job>
+    </group>
+
+</config>

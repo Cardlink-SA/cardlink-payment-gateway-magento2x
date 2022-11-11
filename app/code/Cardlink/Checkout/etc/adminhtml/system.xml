@@ -1,0 +1,175 @@
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="payment">
+            <group id="cardlink_checkout" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Cardlink Payment Gateway CheckOut</label>
+
+                <field id="active" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enabled</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+
+                <field id="title" translate="label comment" type="text" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Title</label>
+                    <comment>The title of the payment method to be displayed during the checkout.</comment>
+                </field>
+
+                <field id="description" translate="label comment" type="text" sortOrder="12" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Description</label>
+                    <comment>A short description of the payment method to be displayed during the checkout.</comment>
+                </field>
+
+                <field id="order_status" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0" canRestore="1">
+                    <label>New Order Status</label>
+                    <source_model>Magento\Sales\Model\Config\Source\Order\Status\NewStatus</source_model>
+                </field>
+
+                <field id="allowspecific" translate="label" type="allowspecific" sortOrder="21" showInDefault="1" showInWebsite="1" showInStore="0" canRestore="1">
+                    <label>Payment from Applicable Countries</label>
+                    <source_model>Magento\Payment\Model\Config\Source\Allspecificcountries</source_model>
+                </field>
+
+                <field id="specificcountry" translate="label" type="multiselect" sortOrder="22" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Payment from Specific Countries</label>
+                    <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
+                    <can_be_empty>1</can_be_empty>
+                </field>
+
+                <field id="business_partner" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Business Partner</label>
+                    <comment>Identify the business partner that will handle payment transactions as agreed with Cardlink.</comment>
+                    <source_model>Cardlink\Checkout\Model\Config\Source\BusinessPartners</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="merchant_id" translate="label comment" type="text" sortOrder="31" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Merchant ID</label>
+                    <comment>The merchant ID provided by Cardlink.</comment>
+                    <frontend_class>required-entry validate-number</frontend_class>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="shared_secret" translate="label" type="obscure" sortOrder="32" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <label>Shared Secret</label>
+                    <comment>The shared secret code provided by Cardlink.</comment>
+                    <frontend_class>required-entry</frontend_class>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="transaction_environment" translate="label comment" type="select" sortOrder="33" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Transactions Environment</label>
+                    <comment>Identify the working environment for payment transactions.</comment>
+                    <source_model>Cardlink\Checkout\Model\Config\Source\TransactionEnvironments</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="transaction_type" translate="label comment" type="select" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Payment Action</label>
+                    <comment>Identify the type of transaction to perform. By selecting the 'Authorize' option, you will need to manually capture the order amount on Cardlink's merchant dashboard.</comment>
+                    <source_model>Cardlink\Checkout\Model\Config\Source\TransactionTypes</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="accept_installments" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Accept Installments</label>
+                    <comment>Enable installment payments and define the maximum number of Installments.</comment>
+                    <source_model>Cardlink\Checkout\Model\Config\Source\AcceptInstallments</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="max_installments" translate="label comment" type="text" sortOrder="41" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Maximum Installments</label>
+                    <comment>The maximum number of installments available for all orders.</comment>
+                    <frontend_class>required-entry validate-greater-than-zero</frontend_class>
+                    <depends>
+                        <field id="enable">1</field>
+                        <field id="accept_installments">fixed</field>
+                    </depends>
+                </field>
+
+                <field id="installments_configuration" translate="label comment" sortOrder="42" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Order Amount Based Installments</label>
+                    <comment>Set the amount ranges to limit the maximum allowed number of installments.</comment>
+                    <backend_model>Magento\Config\Model\Config\Backend\Serialized\ArraySerialized</backend_model>
+                    <frontend_model>Cardlink\Checkout\Block\Adminhtml\System\Config\Form\Field\Installments</frontend_model>
+                    <depends>
+                        <field id="enable">1</field>
+                        <field id="accept_installments">order_amount</field>
+                    </depends>
+                </field>
+
+                <field id="allow_tokenization" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Allow Tokenization</label>
+                    <comment>Enable customers to select whether they want to secure store their payment cards for future checkouts.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="checkout_in_iframe" translate="label comment" type="select" sortOrder="90" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Checkout without Leaving Your Store</label>
+                    <comment>Perform the payment flow without having the customers leave your website for Cardlink's payment gateway. You will need to have a valid SSL certificate properly configured on your domain.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="force_store_language" translate="label comment" type="select" sortOrder="91" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Force Store Language on Cardlink's Payment Gateway</label>
+                    <comment>Instruct Cardlink's Payment Gateway to use the language of the store that the order gets placed.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="display_payment_method_logo" translate="label comment" type="select" sortOrder="92" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Display Cardlink Logo</label>
+                    <comment>Display the Cardlink logo next to the payment method title.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="payment_gateway_css_url" translate="label comment" type="text" sortOrder="93" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>CSS URL</label>
+                    <comment>Full URL of custom CSS stylesheet, to be used to display payment page styles.</comment>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="log_debug_info" translate="label comment" type="select" sortOrder="94" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Log Debug Information</label>
+                    <comment>Store debug log information in file cardlink.log. Use only for a limited time frame and delete the log file afterwards.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="sort_order" translate="label comment" type="text" sortOrder="140" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Sort Order</label>
+                    <frontend_class>validate-number</frontend_class>
+                </field>
+
+            </group>
+        </section>
+    </system>
+</config>

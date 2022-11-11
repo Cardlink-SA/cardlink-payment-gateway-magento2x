@@ -1,0 +1,117 @@
+#cardlink_checkout--payment-method-content {
+    padding-top: 10px;
+}
+
+img#cardlink_checkout--payment-method-logo {
+    float: none !important;
+    max-height: 40px;
+    margin-top: 4px;
+    margin-bottom: 15px;
+}
+
+#cardlink-checkout-options-form {
+	margin-bottom: 20px;
+
+    dt {
+        font-weight: normal;
+        margin-top: 12px;
+        margin-bottom: 12px;
+        display: flex;
+    }
+
+    .cardlink_checkout--stored-card-container,
+    .cardlink_checkout--stored-card-container>label {
+        display: flex !important;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        align-items: flex-start;
+        column-gap: 10px;
+    }
+
+    .cardlink_checkout--stored-card-container {
+
+        img.cardlink_checkout--card-type-image {
+            max-height: 40px;
+        }
+
+        .cardlink_checkout--card-info {
+            flex: auto;
+        }
+
+        .cardlink_checkout--card-info .cardlink_checkout--card-expiry-note {
+            color: #df280a;
+        }
+    }
+}
+
+body.cardlink_checkout--redirect-page {
+    background-color: white;
+
+    h1 {
+        font-size: 14px;
+    }
+}
+
+/* The Modal (background) */
+#cardlink_checkout--modal {
+    display: none;
+    /* Hidden by default */
+    position: fixed;
+    /* Stay in place */
+    z-index: 999999999;
+    /* Sit on top */
+    padding-top: 50px;
+    /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%;
+    /* Full width */
+    height: ~"calc(100% - 50px)";
+    /* Full height */
+    overflow: auto;
+    /* Enable scroll if needed */
+    background-color: rgb(0, 0, 0);
+    /* Fallback color */
+    background-color: rgba(0, 0, 0, 0.4);
+    /* Black w/ opacity */
+
+    #cardlink_checkout--modal-content {
+        margin: 0 auto;
+        width: 90%;
+        height: 95%;
+        background: white;
+        border: none;
+        border-radius: 0;
+        border: 2px solid lightgray;
+
+        #cardlink_checkout--modal-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    }
+
+    /* Modal Content */
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+    }
+
+    /* The Close Button */
+    .close {
+        color: #aaaaaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+
+        &:hover,
+        &:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    }
+}

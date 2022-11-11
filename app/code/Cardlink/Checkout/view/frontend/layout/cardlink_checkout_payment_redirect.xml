@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<page layout="cardlink_checkout_redirect"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <title>Redirecting to Cardlink payment gateway...</title>
+        <meta name="robots" content="NOINDEX,NOFOLLOW"/>
+        <remove src="Magento_Catalog::js/catalog-add-to-cart.js" />
+    </head>
+    <body>
+        <container name="root">
+            <block class="Cardlink\Checkout\Block\Redirect" name="cardlinkcheckout.payment.redirect" template="Cardlink_Checkout::redirect.phtml" cacheable="false" />
+        </container>
+    </body>
+</page>

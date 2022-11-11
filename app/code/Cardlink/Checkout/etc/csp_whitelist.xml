@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<csp_whitelist xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Csp:etc/csp_whitelist.xsd">
+    <policies>
+        <policy id="form-action">
+            <values>
+                <value id="cardlink_domain" type="host">*.cardlink.gr</value>
+                <value id="alphaecommerce_domain" type="host">*.alphaecommerce.gr</value>
+                <value id="eurocommerce_domain" type="host">*.eurocommerce.gr</value>
+            </values>
+        </policy>
+    </policies>
+</csp_whitelist>

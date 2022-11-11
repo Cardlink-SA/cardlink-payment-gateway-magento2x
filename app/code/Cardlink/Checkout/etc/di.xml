@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <type name="Magento\Framework\Url\SecurityInfo">
+        <arguments>
+            <argument name="secureUrlList" xsi:type="array">
+                <item name="route" xsi:type="string">/cardlink_checkout/</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <virtualType name="CardlinkCheckoutFacade" type="Magento\Payment\Model\Method\Adapter">
+        <arguments>
+            <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\Settings::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>
+            <argument name="infoBlockType" xsi:type="string">Cardlink\Checkout\Block\Info</argument>
+            <argument name="valueHandlerPool" xsi:type="object">CardlinkCheckoutValueHandlerPool</argument>
+            <argument name="validatorPool" xsi:type="object">CardlinkCheckoutValidatorPool</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">CardlinkCheckoutConfigValueHandler</item>
+                <item name="can_void" xsi:type="string">Cardlink\Checkout\Gateway\Config\CanVoidHandler</item>
+                <item name="can_cancel" xsi:type="string">Cardlink\Checkout\Gateway\Config\CanVoidHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">CardlinkCheckoutConfig</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Cardlink\Checkout\Model\Config\Settings::CODE</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- ////////////////////////////////////////////////////////// -->
+
+    <type name="Magento\Vault\Model\Ui\TokensConfigProvider">
+        <arguments>
+            <argument name="tokenUiComponentProviders" xsi:type="array">
+                <item name="cardlink_checkout" xsi:type="object">Cardlink\Checkout\Model\Ui\TokenUiComponentProvider</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- ////////////////////////////////////////////////////////// -->
+
+    <type name="Cardlink\Checkout\Logger\Handler">
+        <arguments>
+            <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>
+        </arguments>
+    </type>
+
+    <type name="Cardlink\Checkout\Logger\Logger">
+        <arguments>
+            <argument name="name" xsi:type="string">Cardlink_Checkout_Custom_Log</argument>
+            <argument name="handlers" xsi:type="array">
+                <item name="system" xsi:type="object">Cardlink\Checkout\Logger\Handler</item>
+            </argument>
+        </arguments>
+    </type>
+
+</config>
