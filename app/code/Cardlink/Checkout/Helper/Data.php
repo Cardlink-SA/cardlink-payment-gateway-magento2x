@@ -263,7 +263,7 @@ class Data extends AbstractHelper
                 [
                     'start_amount' => 0,
                     'end_amount' => 0,
-                    'max_installments' => max(1, $maxInstallments)
+                    'max_installments' => max(1, min(60, $maxInstallments))
                 ]
             ];
         } else if ($config == \Cardlink\Checkout\Model\Config\Source\AcceptInstallments::BY_ORDER_AMOUNT) {

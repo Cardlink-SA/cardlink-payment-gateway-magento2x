@@ -176,7 +176,7 @@ class Payment extends AbstractHelper
                 case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
                     return 'https://www.alphaecommerce.gr/vpos/shophandlermpi';
 
-                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORDLINE:
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
                     return 'https://vpos.eurocommerce.gr/vpos/shophandlermpi';
 
                 default:
@@ -189,7 +189,7 @@ class Payment extends AbstractHelper
                 case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
                     return 'https://alphaecommerce-test.cardlink.gr/vpos/shophandlermpi';
 
-                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORDLINE:
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
                     return 'https://eurocommerce-test.cardlink.gr/vpos/shophandlermpi';
 
                 default:
@@ -326,18 +326,22 @@ class Payment extends AbstractHelper
         $formData[ApiFields::ShipAddress] = $shippingAddress->getStreet(1)[0];
 
         // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
-        $cssUrl = trim($this->dataHelper->getCssUrl());
+        $cssUrl = trim((string)$this->dataHelper->getCssUrl());
+
         if ($cssUrl != '') {
             $formData[ApiFields::CssUrl] = $cssUrl;
         }
 
         // Instruct the payment gateway to use the store language for its UI.
         if ($this->dataHelper->getForceStoreLanguage()) {
-            $formData[ApiFields::Language] = explode('_',  $order->getStore()->getLocaleCode())[0];
+            $formData[ApiFields::Language] = explode('_', (string)$order->getStore()->getLocaleCode())[0];
         }
         // Installments information.
         if ($this->dataHelper->acceptsInstallments()) {
-            $installments = $order->getPayment()->getCardlinkInstallments() + 0;
+            // Enforce installments limit
+            $maxInstallments = $this->getMaxInstallments($formData[ApiFields::OrderAmount]);
+
+            $installments = max(0, min($maxInstallments, $order->getPayment()->getCardlinkInstallments() + 0));
 
             if ($installments > 1) {
                 $formData[ApiFields::ExtInstallmentoffset] = 0;
@@ -388,7 +392,7 @@ class Payment extends AbstractHelper
 
         foreach (ApiFields::TRANSACTION_REQUEST_DIGEST_CALCULATION_FIELD_ORDER as $field) {
             if (array_key_exists($field, $formData)) {
-                $ret[$field] = trim($formData[$field]);
+                $ret[$field] = trim((string)$formData[$field]);
                 $concatenatedData .= $ret[$field];
             }
         }

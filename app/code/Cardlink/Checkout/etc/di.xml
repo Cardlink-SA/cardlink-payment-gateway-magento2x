@@ -23,8 +23,6 @@
         <arguments>
             <argument name="handlers" xsi:type="array">
                 <item name="default" xsi:type="string">CardlinkCheckoutConfigValueHandler</item>
-                <item name="can_void" xsi:type="string">Cardlink\Checkout\Gateway\Config\CanVoidHandler</item>
-                <item name="can_cancel" xsi:type="string">Cardlink\Checkout\Gateway\Config\CanVoidHandler</item>
             </argument>
         </arguments>
     </virtualType>
