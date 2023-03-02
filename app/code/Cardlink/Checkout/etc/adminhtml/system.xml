@@ -92,7 +92,7 @@
 
                 <field id="max_installments" translate="label comment" type="text" sortOrder="41" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Maximum Installments</label>
-                    <comment>The maximum number of installments available for all orders. Valid values: 0 to 60.</comment>
+                    <comment>The maximum number of installments available for all orders. Valid range: 0 to 60 installments.</comment>
                     <frontend_class>required-entry validate-greater-than-zero validate-digits-range digits-range-0-60</frontend_class>
                     <depends>
                         <field id="enable">1</field>

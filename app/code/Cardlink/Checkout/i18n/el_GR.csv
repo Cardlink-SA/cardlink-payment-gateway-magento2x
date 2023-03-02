@@ -23,7 +23,7 @@
 "End Amount","Μέγιστο Ποσό"
 "Maximum Installments","Μέγιστο Πλήθος Δόσεων"
 "Add Range","Προσθήκη Εύρους"
-"Set the amount ranges to limit the maximum allowed number of installments. Valid range: 0 to 60 installements.","Ρύθμιση εύρων ποσών αγοράς για τον καθορισμό του μέγιστου επιτρεπτού πλήθους δόσεων. Αποδεκτές τιμές: 0 έως 60 δόσεις."
+"Set the amount ranges to limit the maximum allowed number of installments. Valid range: 0 to 60 installments.","Ρύθμιση εύρων ποσών αγοράς για τον καθορισμό του μέγιστου επιτρεπτού πλήθους δόσεων. Αποδεκτό εύρος: 0 έως 60 δόσεις."
 "The merchant ID provided by Cardlink.","Το MID επιχείρησης που σας παρέχεται από την Cardlink."
 "The shared secret code provided by Cardlink.","Ο μυστικός κωδικός που σας παρέχεται από την Cardlink."
 "Transactions Environment","Περιβάλλον Συναλλαγών"

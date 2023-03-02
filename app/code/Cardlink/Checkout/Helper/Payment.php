@@ -313,7 +313,7 @@ class Payment extends AbstractHelper
 
         // Billing information
         $formData[ApiFields::BillCountry] = $billingAddress->getCountryId();
-        $formData[ApiFields::BillState] = $billingAddress->getRegionCode();
+        //$formData[ApiFields::BillState] = $billingAddress->getRegionCode();
         $formData[ApiFields::BillZip] = $billingAddress->getPostcode();
         $formData[ApiFields::BillCity] = $billingAddress->getCity();
         $formData[ApiFields::BillAddress] = $billingAddress->getStreet(1)[0];
