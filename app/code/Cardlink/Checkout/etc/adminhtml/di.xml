@@ -16,4 +16,13 @@
         </arguments>
     </type>
 
+    <type name="Cardlink\Checkout\Block\InfoIris">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsIris::CODE</item>
+                <item xsi:type="string" name="is_secure_mode">0</item>
+            </argument>
+        </arguments>
+    </type>
+
 </config>

@@ -15,10 +15,27 @@
         </arguments>
     </type>
 
+    <type name="Magento\Checkout\Model\CompositeConfigProvider">
+        <arguments>
+            <argument name="configProviders" xsi:type="array">
+                <item name="cardlink_checkout_iris_config_provider" xsi:type="object">Cardlink\Checkout\Model\Config\SettingsIris</item>
+            </argument>
+        </arguments>
+    </type>
+
     <type name="Cardlink\Checkout\Block\Info">
         <arguments>
             <argument name="data" xsi:type="array">
                 <item name="code" xsi:type="const">Cardlink\Checkout\Model\Config\Settings::CODE</item>
+                <item xsi:type="string" name="is_secure_mode">1</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Cardlink\Checkout\Block\InfoIris">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsIris::CODE</item>
                 <item xsi:type="string" name="is_secure_mode">1</item>
             </argument>
         </arguments>

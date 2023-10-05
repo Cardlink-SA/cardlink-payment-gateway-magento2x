@@ -123,7 +123,19 @@ class Response extends Action implements CsrfAwareActionInterface
             $this->dataHelper->getSharedSecret()
         );
 
-        if (!$isValidPaymentGatewayResponse) {
+        $isValidXlsBonusPaymentGatewayResponse = true;
+
+        // If performing a Bonus transaction, validate the xlsbonusdigest field
+        if (array_key_exists(ApiFields::XlsBonusDigest, $responseData)) {
+            $isValidXlsBonusPaymentGatewayResponse = $this->paymentHelper->validateXlsBonusResponseData(
+                $responseData,
+                $this->dataHelper->getSharedSecret()
+            );
+        }
+
+        $message = null;
+
+        if (!$isValidPaymentGatewayResponse || !$isValidXlsBonusPaymentGatewayResponse) {
             // The response data could not be verified.
             $this->_redirect('checkout/cart', ['_secure' => true]);
             return;
@@ -147,9 +159,17 @@ class Response extends Action implements CsrfAwareActionInterface
                 $this->paymentHelper->markSuccessfulPayment($order, $responseData);
                 $this->checkoutSession->unsQuoteId();
 
-                $message = $responseData[ApiFields::Message];
+                $this->checkoutSession->setLastOrderId($order->getId())
+                    ->setLastRealOrderId($order->getIncrementId())
+                    ->setLastOrderStatus($order->getStatus());
+
+                // If the response identifies the transaction as either CANCELED, REFUSED or ERROR add an error message.
+                if (array_key_exists(ApiFields::Message, $responseData)) {
+                    $message = $responseData[ApiFields::Message];
+                }
                 $success = true;
-            } else if ( // The payment was either canceled by the customer, refused by the payment gateway or an error occured.
+            } else if (
+                // The payment was either canceled by the customer, refused by the payment gateway or an error occured.
                 $responseData[ApiFields::Status] === PaymentStatus::CANCELED
                 || $responseData[ApiFields::Status] === PaymentStatus::REFUSED
                 || $responseData[ApiFields::Status] === PaymentStatus::ERROR
@@ -164,7 +184,12 @@ class Response extends Action implements CsrfAwareActionInterface
                 }
 
                 // If the response identifies the transaction as either CANCELED, REFUSED or ERROR add an error message.
-                $message = $responseData[ApiFields::Message];
+                if (array_key_exists(ApiFields::Message, $responseData)) {
+                    $message = $responseData[ApiFields::Message];
+                } else {
+                    $message = 'The payment was canceled by you or declined by the bank. Your order has been canceled.';
+                }
+
                 $this->messageManager->addErrorMessage(__($message));
             }
         }
@@ -178,7 +203,9 @@ class Response extends Action implements CsrfAwareActionInterface
             $resultPage = $this->resultFactory->create(ResultFactory::TYPE_PAGE);
             $block = $resultPage->getLayout()->getBlock('cardlinkcheckout.payment.response');
             $block->setRedirectUrl($redirectUrl);
-            $block->setMessage($message);
+            if (isset($message)) {
+                $block->setMessage(__($message));
+            }
             $block->setOrderId($orderId);
             return $resultPage;
         } else {

@@ -6,13 +6,13 @@ define(
     function (Component, rendererList) {
         'use strict';
 
-        const isEnabled = window.checkoutConfig.payment.cardlink_checkout.enable;
+        const isIrisEnabled = window.checkoutConfig.payment.cardlink_checkout_iris.enable;
 
-        if (isEnabled) {
+        if (isIrisEnabled) {
             rendererList.push(
                 {
-                    type: 'cardlink_checkout',
-                    component: 'Cardlink_Checkout/js/view/payment/method-renderer/cardlink-checkout-method'
+                    type: 'cardlink_checkout_iris',
+                    component: 'Cardlink_Checkout/js/view/payment/method-renderer/cardlink-checkout-iris-method'
                 }
             );
         }

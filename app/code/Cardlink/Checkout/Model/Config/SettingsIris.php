@@ -20,9 +20,9 @@ use Magento\Payment\Model\CcConfigProvider;
  * 
  * @author Cardlink S.A.
  */
-class Settings implements ConfigProviderInterface
+class SettingsIris implements ConfigProviderInterface
 {
-    const CODE = 'cardlink_checkout';
+    const CODE = 'cardlink_checkout_iris';
 
     /**
      * @var Logger
@@ -52,15 +52,6 @@ class Settings implements ConfigProviderInterface
      * @var Data
      */
     private $dataHelper;
-    /**
-     * @var Tokenization
-     */
-    private $tokenizationHelper;
-
-    /**
-     * @var CcConfigProvider
-     */
-    private $iconsProvider;
 
     /**
      * Constructor.
@@ -72,8 +63,6 @@ class Settings implements ConfigProviderInterface
      * @param UrlInterface $urlBuilder
      * @param Repository $assetRepo
      * @param Data $dataHelper
-     * @param Tokenization $tokenizationHelper
-     * @param CcConfigProvider $iconsProvider
      */
     public function __construct(
         Logger $logger,
@@ -82,9 +71,7 @@ class Settings implements ConfigProviderInterface
         SessionFactory $sessionFactory,
         UrlInterface $urlBuilder,
         Repository $assetRepo,
-        Data $dataHelper,
-        Tokenization $tokenizationHelper,
-        CcConfigProvider $iconsProvider
+        Data $dataHelper
     ) {
         $this->logger = $logger;
         $this->scopeConfig = $scopeConfig;
@@ -93,8 +80,6 @@ class Settings implements ConfigProviderInterface
         $this->urlBuilder = $urlBuilder;
         $this->assetRepo = $assetRepo;
         $this->dataHelper = $dataHelper;
-        $this->tokenizationHelper = $tokenizationHelper;
-        $this->iconsProvider = $iconsProvider;
     }
 
     /**
@@ -113,15 +98,11 @@ class Settings implements ConfigProviderInterface
         return [
             'payment' => [
                 self::CODE => [
-                    'enable' => $this->dataHelper->isEnabled(),
-                    'acceptsInstallments' => $this->dataHelper->acceptsInstallments(),
-                    'installmentsConfiguration' => $this->dataHelper->getInstallmentsConfiguration(),
-                    'allowsTokenization' => $this->dataHelper->allowsTokenization() && $customerId,
-                    'displayLogoInTitle' => $this->dataHelper->displayLogoInTitle(),
+                    'enable' => true,
+                    // $this->dataHelper->isEnabled(),
+                    'displayLogoInTitle' => $this->dataHelper->displayIrisLogoInTitle(),
                     'checkoutInIFrame' => $this->dataHelper->doCheckoutInIframe(),
-                    'logoUrl' => $this->dataHelper->getLogoUrl(),
-                    'storedTokens' => $this->tokenizationHelper->getCustomerPaymentTokens($customerId, true, false),
-                    'cardTypeData' => $this->iconsProvider->getIcons()
+                    'logoUrl' => $this->dataHelper->getIrisLogoUrl()
                 ]
             ]
         ];

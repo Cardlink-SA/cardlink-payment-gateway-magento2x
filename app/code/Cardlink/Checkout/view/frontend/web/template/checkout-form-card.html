@@ -8,7 +8,8 @@
     <div class="payment-method-content cardlink_checkout--payment-method-content">
 
         <!-- ko if: canDisplayLogoInTitle() -->
-        <img data-bind="attr: {src: getLogoUrl(), alt: $t(getTitle())}" id="cardlink_checkout--payment-method-logo" />
+        <img data-bind="attr: {src: getLogoUrl(), alt: $t(getTitle())}"
+            id="cardlink_checkout_card--payment-method-logo" />
         <!-- /ko -->
 
         <!-- ko foreach: getRegion('messages') -->
@@ -24,7 +25,7 @@
         </div>
 
         <form id="cardlink-checkout-options-form" class="form form-cardlink-checkout-options-order"
-            data-role="cardlink-checkout-options-form">
+            data-role="cardlink-checkout-card-options-form">
             <fieldset class="fieldset payment method" data-bind='attr: {id: "payment_form_" + getCode()}'>
 
                 <!-- ko if: acceptsInstallments() -->

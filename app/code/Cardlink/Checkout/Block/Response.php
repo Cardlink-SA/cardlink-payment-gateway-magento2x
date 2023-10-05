@@ -48,7 +48,7 @@ class Response extends \Magento\Framework\View\Element\Template
      */
     public function setRedirectUrl($url)
     {
-        return  $this->setData('redirectUrl', $url);
+        return $this->setData('redirectUrl', $url);
     }
 
     /**
@@ -68,7 +68,7 @@ class Response extends \Magento\Framework\View\Element\Template
      */
     public function setOrderId($orderId)
     {
-        return  $this->setData('orderId', $orderId);
+        return $this->setData('orderId', $orderId);
     }
 
     /**
@@ -88,7 +88,7 @@ class Response extends \Magento\Framework\View\Element\Template
      */
     public function setMessage($message)
     {
-        return  $this->setData('message', $message);
+        return $this->setData('message', $message);
     }
 
     /**
@@ -110,7 +110,7 @@ class Response extends \Magento\Framework\View\Element\Template
     {
         return [
             'orderId' => $this->getOrderId(),
-            'message' => $this->getMessage()
+            //'message' => $this->getMessage()
         ];
     }
 
@@ -125,7 +125,7 @@ class Response extends \Magento\Framework\View\Element\Template
 
         $ret = '<form name="cardlink_checkout" method="get" target="_top" action="' . $this->getRedirectUrl() . '">' . PHP_EOL;
         foreach ($this->getFormData() as $formFieldKey => $formFieldValue) {
-            $ret .= '<input type="hidden" name="' .  $formFieldKey . '" value="' . $formFieldValue . '" />' . PHP_EOL;
+            $ret .= '<input type="hidden" name="' . $formFieldKey . '" value="' . $formFieldValue . '" />' . PHP_EOL;
         }
         $ret .= '</form>' . PHP_EOL;
 

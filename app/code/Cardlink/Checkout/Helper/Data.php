@@ -37,6 +37,9 @@ class Data extends AbstractHelper
     const XML_PATH_CONFIG_CHECKOUT_IN_IFRAME = 'payment/cardlink_checkout/checkout_in_iframe';
     const XML_PATH_CONFIG_CSS_URL = 'payment/cardlink_checkout/css_url';
     const XML_PATH_CONFIG_LOG_DEBUG_INFO = 'payment/cardlink_checkout/log_debug_info';
+    const XML_PATH_CONFIG_IRIS_DIAS_CODE = 'payment/cardlink_checkout_iris/dias_code';
+    const XML_PATH_CONFIG_IRIS_ENABLED = 'payment/cardlink_checkout_iris/active';
+    const XML_PATH_CONFIG_IRIS_DISPLAY_PAYMENT_METHOD_LOGO = 'payment/cardlink_checkout_iris/display_payment_method_logo';
 
     /**
      * @var LoggerInterface
@@ -126,7 +129,7 @@ class Data extends AbstractHelper
      */
     public function isEnabled()
     {
-        return (bool)self::getStoreConfigValue(self::XML_PATH_CONFIG_ENABLED);
+        return (bool) self::getStoreConfigValue(self::XML_PATH_CONFIG_ENABLED);
     }
 
     /**
@@ -192,7 +195,7 @@ class Data extends AbstractHelper
      *
      * @return string
      */
-    public function  getTransactionType()
+    public function getTransactionType()
     {
         $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_TRANSACTION_TYPE);
 
@@ -326,6 +329,16 @@ class Data extends AbstractHelper
     }
 
     /**
+     * Determines that the IRIS logo will be displayed next to the payment method title at the checkout page.
+     *
+     * @return bool
+     */
+    public function displayIrisLogoInTitle()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_IRIS_DISPLAY_PAYMENT_METHOD_LOGO);
+    }
+
+    /**
      * Returns the configured custom CSS URL for use in the Cardlink payment gateway's pages.
      *
      * @return string
@@ -361,4 +374,42 @@ class Data extends AbstractHelper
         );
         return $ret;
     }
+
+    /**
+     * Returns the URL of the Cardlink logo.
+     * 
+     * @return string
+     */
+    public function getIrisLogoUrl()
+    {
+        // Identify that the Cardlink logo will be appended to the payment method's label.        
+        $ret = $this->assetRepo->getUrlWithParams(
+            'Cardlink_Checkout::images/iris.jpg',
+            [
+                '_secure' => true
+            ]
+        );
+        return $ret;
+    }
+
+    /**
+     * Returns the configured DIAS code.
+     * 
+     * @return string
+     */
+    public function getDiasCode()
+    {
+        return trim(self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_DIAS_CODE));
+    }
+
+    /**
+     * Returns the configured DIAS code.
+     * 
+     * @return string
+     */
+    public function isIrisEnabled()
+    {
+        return trim(self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_ENABLED));
+    }
+
 }

@@ -17,8 +17,8 @@ use Magento\Framework\Module\ResourceInterface;
 class Version extends AbstractHelper
 {
     const XML_PATH_LAST_SEEN_VERSION = 'payment/cardlink_checkout/last_seen_version';
-    const VERSION_DOWNLOAD_URL = 'https://github.com/Cardlink-SA/magento2-cardlink-payment-gateway/';
-    const PUBLISHED_MODULE_CONFIGURATION_XML_URL = '';
+    const VERSION_DOWNLOAD_URL = 'https://github.com/Cardlink-SA/cardlink-checkout-magento-v2';
+    const PUBLISHED_MODULE_CONFIGURATION_XML_URL = 'https://raw.githubusercontent.com/Cardlink-SA/cardlink-checkout-magento-v2/main/app/code/Cardlink/Checkout/etc/module.xml';
 
     /**
      * @var Logger
@@ -120,34 +120,22 @@ class Version extends AbstractHelper
     {
         try {
 
-            /*  if (self::PUBLISHED_MODULE_CONFIGURATION_XML_URL == '') {
+            if (self::PUBLISHED_MODULE_CONFIGURATION_XML_URL == '') {
                 return array(
                     'version' => self::getCurrentlyInstalledVersion(),
                     'comment' => ''
                 );
-            } */
+            }
 
-            /* $ch = curl_init();
+            $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, self::PUBLISHED_MODULE_CONFIGURATION_XML_URL);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_HEADER, 1);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 1);
 
-            $contentConfigXmlFile = curl_exec($ch); */
+            $contentConfigXmlFile = curl_exec($ch);
 
-            $contentConfigXmlFile = '<?xml version="1.0"?>
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
-    <module name="Cardlink_Checkout" setup_version="0.1.1" schema_version="0.1.0">
-        <sequence>
-            <module name="Magento_Sales"/>
-            <module name="Magento_Payment"/>
-            <module name="Magento_Checkout"/>
-            <module name="Magento_Directory" />
-            <module name="Magento_Config" />
-        </sequence>
-    </module>
-</config>';
 
             $xml = simplexml_load_string($contentConfigXmlFile);
             $modulesConfig = json_decode(json_encode($xml), TRUE);

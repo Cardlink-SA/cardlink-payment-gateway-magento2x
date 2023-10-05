@@ -24,7 +24,7 @@ define(
         return Component.extend({
 
             defaults: {
-                template: 'Cardlink_Checkout/checkout-form',
+                template: 'Cardlink_Checkout/checkout-form-card',
                 cardlinkTokenizeCard: false,
                 cardlinkStoredToken: 1,
                 cardlinkInstallments: 1,
@@ -74,7 +74,6 @@ define(
                         const startAmount = parseFloat(range.start_amount);
                         const endAmount = parseFloat(range.end_amount);
 
-                        console.log(range);
                         if (
                             startAmount <= orderAmount
                             && (
@@ -160,7 +159,7 @@ define(
              * @return {jQuery}
              */
             validate: function () {
-                var form = 'form[data-role=cardlink-checkout-options-form]';
+                var form = 'form[data-role=cardlink-checkout-iris-options-form]';
 
                 return $(form).validation() && $(form).validation('isValid');
             },

@@ -302,10 +302,23 @@ class Payment extends AbstractHelper
         $formData[ApiFields::CancelUrl] = $this->getTransactionCancelUrl();
 
         // Order information
-        $formData[ApiFields::OrderDescription] = "ORDER ${orderId}";
-        $formData[ApiFields::OrderId] =  $orderId;
-        $formData[ApiFields::OrderAmount] =  floatval($order->getGrandTotal()); // Get order total amount
+        $formData[ApiFields::OrderId] = $orderId;
+        $formData[ApiFields::OrderAmount] = floatval($order->getGrandTotal()); // Get order total amount
         $formData[ApiFields::Currency] = $order->getOrderCurrencyCode(); // Get order currency code
+
+        $diasCode = $this->dataHelper->getDiasCode();
+        $enableIrisPayments = $this->dataHelper->isIrisEnabled() && $diasCode != '';
+
+        $method = $payment->getMethodInstance();
+        $payment_method_code = $method->getCode();
+
+        if ($payment_method_code == 'cardlink_checkout_iris' && $enableIrisPayments) {
+            $formData[ApiFields::PaymentMethod] = 'IRIS';
+            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $formData[ApiFields::OrderId], $formData[ApiFields::OrderAmount]); // The type of transaction to perform (Sale/Authorize).
+            $formData[ApiFields::TransactionType] = '1';
+        } else {
+            $formData[ApiFields::OrderDescription] = 'ORDER ' . $orderId;
+        }
 
         // Payer/customer information
         $formData[ApiFields::PayerEmail] = $billingAddress->getEmail();
@@ -326,7 +339,7 @@ class Payment extends AbstractHelper
         $formData[ApiFields::ShipAddress] = $shippingAddress->getStreet(1)[0];
 
         // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
-        $cssUrl = trim((string)$this->dataHelper->getCssUrl());
+        $cssUrl = trim((string) $this->dataHelper->getCssUrl());
 
         if ($cssUrl != '') {
             $formData[ApiFields::CssUrl] = $cssUrl;
@@ -334,7 +347,7 @@ class Payment extends AbstractHelper
 
         // Instruct the payment gateway to use the store language for its UI.
         if ($this->dataHelper->getForceStoreLanguage()) {
-            $formData[ApiFields::Language] = explode('_', (string)$order->getStore()->getLocaleCode())[0];
+            $formData[ApiFields::Language] = explode('_', (string) $order->getStore()->getLocaleCode())[0];
         }
         // Installments information.
         if ($this->dataHelper->acceptsInstallments()) {
@@ -367,7 +380,7 @@ class Payment extends AbstractHelper
         }
 
         // Calculate the digest of the transaction request data and append it.
-        $signedFormData = self::signRequestFormData($formData,  $this->dataHelper->getSharedSecret());
+        $signedFormData = self::signRequestFormData($formData, $this->dataHelper->getSharedSecret());
 
         if ($this->dataHelper->logDebugInfoEnabled()) {
             $this->logger->debug("Valid payment request created for order {$signedFormData[ApiFields::OrderId]}.");
@@ -392,7 +405,7 @@ class Payment extends AbstractHelper
 
         foreach (ApiFields::TRANSACTION_REQUEST_DIGEST_CALCULATION_FIELD_ORDER as $field) {
             if (array_key_exists($field, $formData)) {
-                $ret[$field] = trim((string)$formData[$field]);
+                $ret[$field] = trim((string) $formData[$field]);
                 $concatenatedData .= $ret[$field];
             }
         }
@@ -401,6 +414,46 @@ class Payment extends AbstractHelper
         $ret[ApiFields::Digest] = self::generateDigest($concatenatedData);
 
         return $ret;
+    }
+
+    /**
+     * Generate the Request Fund (RF) code for IRIS payments.
+     * @param string $diasCustomerCode The DIAS customer code of the merchant.
+     * @param mixed $orderId The ID of the order.
+     * @param mixed $amount The amount due.
+     * @return string The generated RF code.
+     */
+    public static function generateIrisRFCode(string $diasCustomerCode, $orderId, $amount)
+    {
+        /* calculate payment check code */
+        $paymentSum = 0;
+
+        if ($amount > 0) {
+            $ordertotal = str_replace([','], '.', (string) $amount);
+            $ordertotal = number_format($ordertotal, 2, '', '');
+            $ordertotal = strrev($ordertotal);
+            $factor = [1, 7, 3];
+            $idx = 0;
+            for ($i = 0; $i < strlen($ordertotal); $i++) {
+                $idx = $idx <= 2 ? $idx : 0;
+                $paymentSum += $ordertotal[$i] * $factor[$idx];
+                $idx++;
+            }
+        }
+
+        $orderIdNum = (int) filter_var($orderId, FILTER_SANITIZE_NUMBER_INT);
+
+        $randomNumber = str_pad($orderIdNum, 13, '0', STR_PAD_LEFT);
+        $paymentCode = $paymentSum ? ($paymentSum % 8) : '8';
+        $systemCode = '12';
+        $tempCode = $diasCustomerCode . $paymentCode . $systemCode . $randomNumber . '271500';
+        $mod97 = bcmod($tempCode, '97');
+
+        $cd = 98 - (int) $mod97;
+        $cd = str_pad((string) $cd, 2, '0', STR_PAD_LEFT);
+        $rf_payment_code = 'RF' . $cd . $diasCustomerCode . $paymentCode . $systemCode . $randomNumber;
+
+        return $rf_payment_code;
     }
 
     /**
@@ -418,7 +471,7 @@ class Payment extends AbstractHelper
         foreach (ApiFields::TRANSACTION_RESPONSE_DIGEST_CALCULATION_FIELD_ORDER as $field) {
             if ($field != ApiFields::Digest) {
                 if (array_key_exists($field, $formData)) {
-                    $concatenatedData .=  $formData[$field];
+                    $concatenatedData .= $formData[$field];
                 }
             }
         }
@@ -427,6 +480,33 @@ class Payment extends AbstractHelper
         $generatedDigest = $this->GenerateDigest($concatenatedData);
 
         return $formData[ApiFields::Digest] == $generatedDigest;
+    }
+
+    /**
+     * Validate the response data of the payment gateway for Alpha Bonus transactions 
+     * by recalculating and comparing the data digests in order to identify legitimate incoming request.
+     * 
+     * @param array $formData The payment gateway response data.
+     * @param string $sharedSecret The shared secret code of the merchant.
+     * 
+     * @return bool Identifies that the incoming data were sent by the payment gateway.
+     */
+    public function validateXlsBonusResponseData($formData, $sharedSecret)
+    {
+        $concatenatedData = '';
+
+        foreach (ApiFields::TRANSACTION_RESPONSE_XLSBONUS_DIGEST_CALCULATION_FIELD_ORDER as $field) {
+            if ($field != ApiFields::XlsBonusDigest) {
+                if (array_key_exists($field, $formData)) {
+                    $concatenatedData .= $formData[$field];
+                }
+            }
+        }
+
+        $concatenatedData .= $sharedSecret;
+        $generatedDigest = $this->GenerateDigest($concatenatedData);
+
+        return $formData[ApiFields::XlsBonusDigest] == $generatedDigest;
     }
 
     /**
@@ -538,8 +618,8 @@ class Payment extends AbstractHelper
             $this->addTransactionToOrder(
                 $order,
                 $responseData[ApiFields::Status] == PaymentStatus::CAPTURED
-                    ? Transaction::TYPE_CAPTURE
-                    : Transaction::TYPE_AUTH,
+                ? Transaction::TYPE_CAPTURE
+                : Transaction::TYPE_AUTH,
                 [
                     ApiFields::OrderId => $responseData[ApiFields::OrderId],
                     ApiFields::PaymentMethod => strtoupper($responseData[ApiFields::PaymentMethod]),
@@ -567,16 +647,18 @@ class Payment extends AbstractHelper
                         $this->logger->debug("Storing token {$responseData[ApiFields::PaymentMethod]}/{$responseData[ApiFields::ExtTokenPanEnd]} for customer {$customerId}.");
                     }
 
-                    // Store the tokenized card information.
-                    $storedToken = $this->tokenizationHelper->storeTokenForCustomer(
-                        $customerId,
-                        $responseData[ApiFields::ExtToken],
-                        $responseData[ApiFields::PaymentMethod],
-                        $responseData[ApiFields::ExtTokenPanEnd],
-                        $responseData[ApiFields::ExtTokenExpiration]
-                    );
+                    if (array_key_exists(ApiFields::ExtToken, $responseData)) {
+                        // Store the tokenized card information.
+                        $storedToken = $this->tokenizationHelper->storeTokenForCustomer(
+                            $customerId,
+                            $responseData[ApiFields::ExtToken],
+                            $responseData[ApiFields::PaymentMethod],
+                            $responseData[ApiFields::ExtTokenPanEnd],
+                            $responseData[ApiFields::ExtTokenExpiration]
+                        );
 
-                    $payment->setCardlinkStoredToken($storedToken->getEntityId());
+                        $payment->setCardlinkStoredToken($storedToken->getEntityId());
+                    }
                     $payment->save();
                 }
 
@@ -601,7 +683,6 @@ class Payment extends AbstractHelper
     public function markCanceledPayment($order, $responseData = null)
     {
         if ($order->getId()) {
-            $this->orderManagement->cancel($order->getId());
 
             if (isset($responseData)) {
                 $paymentStatus = '';
@@ -647,6 +728,7 @@ class Payment extends AbstractHelper
             }
             $payment->save();
 
+            $this->orderManagement->cancel($order->getId());
             $this->restoreQuote($order);
         }
     }
@@ -741,7 +823,7 @@ class Payment extends AbstractHelper
             $order->save();
             $transaction->save();
 
-            return  $transaction->getTransactionId();
+            return $transaction->getTransactionId();
         } catch (\Exception $e) {
             $this->messageManager->addExceptionMessage($e, $e->getMessage());
         }

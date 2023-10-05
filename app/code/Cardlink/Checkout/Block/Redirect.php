@@ -39,7 +39,7 @@ class Redirect extends \Magento\Framework\View\Element\Template
     {
         $ret = '<form name="cardlink_checkout" method="post" target="_self" action="' . $this->getPaymentGatewayUrl() . '">' . PHP_EOL;
         foreach ($this->getFormData() as $formFieldKey => $formFieldValue) {
-            $ret .= '<input type="hidden" name="' .  $formFieldKey . '" value="' . $formFieldValue . '" />' . PHP_EOL;
+            $ret .= '<input type="hidden" name="' . $formFieldKey . '" value="' . $formFieldValue . '" />' . PHP_EOL;
         }
         $ret .= '</form>' . PHP_EOL;
 

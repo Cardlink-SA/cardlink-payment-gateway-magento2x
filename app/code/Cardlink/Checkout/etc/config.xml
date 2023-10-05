@@ -9,7 +9,7 @@
                 <currency>EUR</currency>
                 <allowspecific>0</allowspecific>
                 <order_status>pending</order_status>
-                <sort_order>0</sort_order>
+                <sort_order>1</sort_order>
 
                 <!-- Magento Payment Gateway settings -->
                 <is_gateway>1</is_gateway>
@@ -32,7 +32,7 @@
                 <!-- custom -->
                 <title>Pay through Cardlink</title>
                 <display_payment_method_logo>1</display_payment_method_logo>
-                <description>Pay Via Cardlink: Accepts Visa, Mastercard, Maestro, American Express, Diners, Discover.</description>
+                <description>Pay via Cardlink: Accepts Visa, Mastercard, Maestro, American Express, Diners, Discover.</description>
                 <merchant_id></merchant_id>
                 <shared_secret></shared_secret>
                 <business_partner>cardlink</business_partner>
@@ -45,6 +45,41 @@
                 <log_debug_info>0</log_debug_info>
 
             </cardlink_checkout>
+
+            <cardlink_checkout_iris>
+                <model>CardlinkCheckoutIrisFacade</model>
+                <active>0</active>
+                <debug>0</debug>
+                <currency>EUR</currency>
+                <allowspecific>0</allowspecific>
+                <order_status>pending</order_status>
+                <sort_order>2</sort_order>
+
+                <!-- Magento Payment Gateway settings -->
+                <is_gateway>1</is_gateway>
+                <can_use_checkout>1</can_use_checkout>
+                <!-- <can_initialize>1</can_initialize> -->
+                <!-- <can_authorize>1</can_authorize> -->
+                <!-- <can_capture>1</can_capture> -->
+                <!-- <can_capture_partial>1</can_capture_partial> -->
+                <!-- <can_authorize_vault>1</can_authorize_vault> -->
+                <!-- <can_capture_vault>1</can_capture_vault> -->
+                <can_use_internal>0</can_use_internal>
+                <can_refund_partial_per_invoice>0</can_refund_partial_per_invoice>
+                <can_refund>0</can_refund>
+                <can_void>1</can_void>
+                <can_cancel>1</can_cancel>
+                <can_edit>1</can_edit>
+                <can_review_payment>1</can_review_payment>
+                <can_deny_payment>0</can_deny_payment>
+
+                <!-- custom -->
+                <title>Pay via IRIS</title>
+                <display_payment_method_logo>1</display_payment_method_logo>
+                <description>Pay via IRIS.</description>
+                <log_debug_info>0</log_debug_info>
+
+            </cardlink_checkout_iris>
         </payment>
     </default>
 </config>

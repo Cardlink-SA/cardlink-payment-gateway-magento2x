@@ -28,14 +28,25 @@
                                                     <item name="children" xsi:type="array">
                                                         <item name="renders" xsi:type="array">
                                                             <item name="children" xsi:type="array">
+
                                                                 <item name="cardlink_checkout" xsi:type="array">
-                                                                    <item name="component" xsi:type="string">Cardlink_Checkout/js/view/payment/cardlink-checkout</item>
+                                                                    <item name="component" xsi:type="string">Cardlink_Checkout/js/view/payment/cardlink-checkout-card</item>
                                                                     <item name="methods" xsi:type="array">
                                                                         <item name="cardlink_checkout" xsi:type="array">
                                                                             <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
                                                                         </item>
                                                                     </item>
                                                                 </item>
+
+                                                                <item name="cardlink_checkout_iris" xsi:type="array">
+                                                                    <item name="component" xsi:type="string">Cardlink_Checkout/js/view/payment/cardlink-checkout-iris</item>
+                                                                    <item name="methods" xsi:type="array">
+                                                                        <item name="cardlink_checkout_iris" xsi:type="array">
+                                                                            <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
+                                                                        </item>
+                                                                    </item>
+                                                                </item>
+
                                                             </item>
                                                         </item>
                                                     </item>

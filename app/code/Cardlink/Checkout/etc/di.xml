@@ -9,6 +9,8 @@
         </arguments>
     </type>
 
+    <!-- ////////////////////////////////////////////////////////// -->
+
     <virtualType name="CardlinkCheckoutFacade" type="Magento\Payment\Model\Method\Adapter">
         <arguments>
             <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\Settings::CODE</argument>
@@ -40,6 +42,45 @@
     </virtualType>
 
     <virtualType name="CardlinkCheckoutValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- ////////////////////////////////////////////////////////// -->
+
+    <virtualType name="CardlinkCheckoutIrisFacade" type="Magento\Payment\Model\Method\Adapter">
+        <arguments>
+            <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsIris::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>
+            <argument name="infoBlockType" xsi:type="string">Cardlink\Checkout\Block\InfoIris</argument>
+            <argument name="valueHandlerPool" xsi:type="object">CardlinkCheckoutIrisValueHandlerPool</argument>
+            <argument name="validatorPool" xsi:type="object">CardlinkCheckoutIrisValidatorPool</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutIrisValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">CardlinkCheckoutIrisConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutIrisConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">CardlinkCheckoutIrisConfig</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutIrisConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsIris::CODE</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutIrisValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
         <arguments>
             <argument name="validators" xsi:type="array">
             </argument>
