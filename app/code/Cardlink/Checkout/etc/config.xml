@@ -46,7 +46,7 @@
 
             </cardlink_checkout>
 
-            <cardlink_checkout_iris>
+            <!--<cardlink_checkout_iris>
                 <model>CardlinkCheckoutIrisFacade</model>
                 <active>0</active>
                 <debug>0</debug>
@@ -55,15 +55,15 @@
                 <order_status>pending</order_status>
                 <sort_order>2</sort_order>
 
-                <!-- Magento Payment Gateway settings -->
+                <!/-/- Magento Payment Gateway settings /-/->
                 <is_gateway>1</is_gateway>
                 <can_use_checkout>1</can_use_checkout>
-                <!-- <can_initialize>1</can_initialize> -->
-                <!-- <can_authorize>1</can_authorize> -->
-                <!-- <can_capture>1</can_capture> -->
-                <!-- <can_capture_partial>1</can_capture_partial> -->
-                <!-- <can_authorize_vault>1</can_authorize_vault> -->
-                <!-- <can_capture_vault>1</can_capture_vault> -->
+                <!/-/- <can_initialize>1</can_initialize> /-/->
+                <!/-/- <can_authorize>1</can_authorize> /-/->
+                <!/-/- <can_capture>1</can_capture> /-/->
+                <!/-/- <can_capture_partial>1</can_capture_partial> /-/->
+                <!/-/- <can_authorize_vault>1</can_authorize_vault> /-/->
+                <!/-/- <can_capture_vault>1</can_capture_vault> /-/->
                 <can_use_internal>0</can_use_internal>
                 <can_refund_partial_per_invoice>0</can_refund_partial_per_invoice>
                 <can_refund>0</can_refund>
@@ -73,13 +73,14 @@
                 <can_review_payment>1</can_review_payment>
                 <can_deny_payment>0</can_deny_payment>
 
-                <!-- custom -->
+                <!/-/- custom /-/->
                 <title>Pay via IRIS</title>
                 <display_payment_method_logo>1</display_payment_method_logo>
                 <description>Pay via IRIS.</description>
                 <log_debug_info>0</log_debug_info>
 
             </cardlink_checkout_iris>
+            -->
         </payment>
     </default>
 </config>

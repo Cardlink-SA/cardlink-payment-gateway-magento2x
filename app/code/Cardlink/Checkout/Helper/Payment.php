@@ -314,7 +314,7 @@ class Payment extends AbstractHelper
 
         if ($payment_method_code == 'cardlink_checkout_iris' && $enableIrisPayments) {
             $formData[ApiFields::PaymentMethod] = 'IRIS';
-            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $formData[ApiFields::OrderId], $formData[ApiFields::OrderAmount]); // The type of transaction to perform (Sale/Authorize).
+            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $formData[ApiFields::OrderId], $formData[ApiFields::OrderAmount]);
             $formData[ApiFields::TransactionType] = '1';
         } else {
             $formData[ApiFields::OrderDescription] = 'ORDER ' . $orderId;

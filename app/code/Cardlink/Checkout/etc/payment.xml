@@ -11,9 +11,11 @@
         <method name="cardlink_checkout">
             <allow_multiple_address>1</allow_multiple_address>
         </method>
-        <method name="cardlink_checkout_iris">
+        <!--
+		<method name="cardlink_checkout_iris">
             <allow_multiple_address>1</allow_multiple_address>
         </method>
+		-->
     </methods>
 
 </payment>
