@@ -333,7 +333,7 @@ class Payment extends AbstractHelper
 
         // Shipping information
         $formData[ApiFields::ShipCountry] = $shippingAddress->getCountryId();
-        $formData[ApiFields::ShipState] = $shippingAddress->getRegionCode();
+        //$formData[ApiFields::ShipState] = $shippingAddress->getRegionCode();
         $formData[ApiFields::ShipZip] = $shippingAddress->getPostcode();
         $formData[ApiFields::ShipCity] = $shippingAddress->getCity();
         $formData[ApiFields::ShipAddress] = $shippingAddress->getStreet(1)[0];
