@@ -291,9 +291,6 @@ class Payment extends AbstractHelper
         //// Maximum number of payment retries - set to 10
         //$formData[ApiFields::MaxPayRetries] = '10';
 
-        // The Merchant ID
-        $formData[ApiFields::MerchantId] = $this->dataHelper->getMerchantId();
-
         // The type of transaction to perform (Sale/Authorize).
         $formData[ApiFields::TransactionType] = $this->getTransactionTypeValue();
 
@@ -313,11 +310,59 @@ class Payment extends AbstractHelper
         $payment_method_code = $method->getCode();
 
         if ($payment_method_code == 'cardlink_checkout_iris' && $enableIrisPayments) {
+
+            // The Merchant ID
+            $formData[ApiFields::MerchantId] = $this->dataHelper->getIrisMerchantId();
+            $sharedSecret = $this->dataHelper->getIrisSharedSecret();
+
             $formData[ApiFields::PaymentMethod] = 'IRIS';
             $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $formData[ApiFields::OrderId], $formData[ApiFields::OrderAmount]);
             $formData[ApiFields::TransactionType] = '1';
+
+            // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
+            $cssUrl = trim((string) $this->dataHelper->getIrisCssUrl());
+
         } else {
+
+            // The Merchant ID
+            $formData[ApiFields::MerchantId] = $this->dataHelper->getMerchantId();
+            $sharedSecrete = $this->dataHelper->getSharedSecret();
+
             $formData[ApiFields::OrderDescription] = 'ORDER ' . $orderId;
+
+            // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
+            $cssUrl = trim((string) $this->dataHelper->getCssUrl());
+
+            // Installments information.
+            if ($this->dataHelper->acceptsInstallments()) {
+                // Enforce installments limit
+                $maxInstallments = $this->getMaxInstallments($formData[ApiFields::OrderAmount]);
+
+                $installments = max(0, min($maxInstallments, $order->getPayment()->getCardlinkInstallments() + 0));
+
+                if ($installments > 1) {
+                    $formData[ApiFields::ExtInstallmentoffset] = 0;
+                    $formData[ApiFields::ExtInstallmentperiod] = $installments;
+                }
+            }
+
+            // Tokenization
+            if ($this->dataHelper->allowsTokenization()) {
+                if ($payment->getCardlinkStoredToken() > 0) {
+                    $paymentToken = $this->tokenizationHelper->getCustomerPaymentToken(
+                        $order->getCustomerId(),
+                        $payment->getCardlinkStoredToken()
+                    );
+
+                    if ($paymentToken != null && $paymentToken->getIsActive() && !$paymentToken->getIsExpired()) {
+                        $formData[ApiFields::ExtTokenOptions] = 100;
+                        $formData[ApiFields::ExtToken] = $paymentToken->getGatewayToken();
+                    }
+                } else if ($payment->getCardlinkTokenizeCard()) {
+                    $formData[ApiFields::ExtTokenOptions] = 100;
+                }
+            }
+
         }
 
         // Payer/customer information
@@ -338,9 +383,6 @@ class Payment extends AbstractHelper
         $formData[ApiFields::ShipCity] = $shippingAddress->getCity();
         $formData[ApiFields::ShipAddress] = $shippingAddress->getStreet(1)[0];
 
-        // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
-        $cssUrl = trim((string) $this->dataHelper->getCssUrl());
-
         if ($cssUrl != '') {
             $formData[ApiFields::CssUrl] = $cssUrl;
         }
@@ -349,38 +391,9 @@ class Payment extends AbstractHelper
         if ($this->dataHelper->getForceStoreLanguage()) {
             $formData[ApiFields::Language] = explode('_', (string) $order->getStore()->getLocaleCode())[0];
         }
-        // Installments information.
-        if ($this->dataHelper->acceptsInstallments()) {
-            // Enforce installments limit
-            $maxInstallments = $this->getMaxInstallments($formData[ApiFields::OrderAmount]);
-
-            $installments = max(0, min($maxInstallments, $order->getPayment()->getCardlinkInstallments() + 0));
-
-            if ($installments > 1) {
-                $formData[ApiFields::ExtInstallmentoffset] = 0;
-                $formData[ApiFields::ExtInstallmentperiod] = $installments;
-            }
-        }
-
-        // Tokenization
-        if ($this->dataHelper->allowsTokenization()) {
-            if ($payment->getCardlinkStoredToken() > 0) {
-                $paymentToken = $this->tokenizationHelper->getCustomerPaymentToken(
-                    $order->getCustomerId(),
-                    $payment->getCardlinkStoredToken()
-                );
-
-                if ($paymentToken != null && $paymentToken->getIsActive() && !$paymentToken->getIsExpired()) {
-                    $formData[ApiFields::ExtTokenOptions] = 100;
-                    $formData[ApiFields::ExtToken] = $paymentToken->getGatewayToken();
-                }
-            } else if ($payment->getCardlinkTokenizeCard()) {
-                $formData[ApiFields::ExtTokenOptions] = 100;
-            }
-        }
 
         // Calculate the digest of the transaction request data and append it.
-        $signedFormData = self::signRequestFormData($formData, $this->dataHelper->getSharedSecret());
+        $signedFormData = self::signRequestFormData($formData, $sharedSecret);
 
         if ($this->dataHelper->logDebugInfoEnabled()) {
             $this->logger->debug("Valid payment request created for order {$signedFormData[ApiFields::OrderId]}.");

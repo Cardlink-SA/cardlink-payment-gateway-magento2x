@@ -161,7 +161,9 @@ class Response extends Action implements CsrfAwareActionInterface
 
                 $this->checkoutSession->setLastOrderId($order->getId())
                     ->setLastRealOrderId($order->getIncrementId())
-                    ->setLastOrderStatus($order->getStatus());
+                    ->setLastOrderStatus($order->getStatus())
+                    ->setLastSuccessQuoteId($order->getQuoteId())
+                    ->setLastQuoteId($order->getQuoteId());
 
                 // If the response identifies the transaction as either CANCELED, REFUSED or ERROR add an error message.
                 if (array_key_exists(ApiFields::Message, $responseData)) {

@@ -399,7 +399,7 @@ class Data extends AbstractHelper
      */
     public function getDiasCode()
     {
-        return trim(self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_DIAS_CODE));
+        return trim((string) self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_DIAS_CODE));
     }
 
     /**
@@ -409,7 +409,7 @@ class Data extends AbstractHelper
      */
     public function isIrisEnabled()
     {
-        return trim(self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_ENABLED));
+        return trim((string) self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_ENABLED));
     }
 
 }
