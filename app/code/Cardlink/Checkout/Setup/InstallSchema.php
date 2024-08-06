@@ -21,8 +21,6 @@ class InstallSchema implements InstallSchemaInterface
      */
     public function install(SchemaSetupInterface $setup, ModuleContextInterface $context)
     {
-        $setup = $setup;
-
         $setup->run("ALTER TABLE `{$setup->getTable('quote_payment')}` ADD `cardlink_tokenize_card` SMALLINT( 1 ) NOT NULL;");
         $setup->run("ALTER TABLE `{$setup->getTable('quote_payment')}` ADD `cardlink_stored_token` INT( 10 ) NOT NULL;");
         $setup->run("ALTER TABLE `{$setup->getTable('quote_payment')}` ADD `cardlink_installments` SMALLINT( 5 ) NOT NULL;");

@@ -12,10 +12,11 @@ use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\UrlInterface;
+use Magento\Framework\Message\ManagerInterface;
+use Magento\Framework\Controller\Result\RedirectFactory;
 use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\CsrfAwareActionInterface;
-use Magento\Framework\Message\ManagerInterface;
 
 /**
  * Controller action used to handle responses from the payment gateway.
@@ -55,6 +56,11 @@ class Response extends Action implements CsrfAwareActionInterface
     private $paymentHelper;
 
     /**
+     * @var RedirectFactory
+     */
+    protected $resultRedirectFactory;
+
+    /**
      * Controller constructor.
      * 
      * @param Context $context
@@ -70,41 +76,22 @@ class Response extends Action implements CsrfAwareActionInterface
         Session $checkoutSession,
         ManagerInterface $messageManager,
         UrlInterface $urlBuilder,
+        RedirectFactory $resultRedirectFactory,
         Logger $logger,
         Data $dataHelper,
         Payment $paymentHelper
+
     ) {
         $this->checkoutSession = $checkoutSession;
         $this->messageManager = $messageManager;
         $this->urlBuilder = $urlBuilder;
+        $this->resultRedirectFactory = $resultRedirectFactory;
         $this->logger = $logger;
 
         $this->dataHelper = $dataHelper;
         $this->paymentHelper = $paymentHelper;
 
         return parent::__construct($context);
-    }
-
-    /**
-     * Skip CSRF checks for the requests to this action.
-     * 
-     * @param RequestInterface $request
-     *
-     * @return bool|null
-     */
-    public function validateForCsrf(RequestInterface $request): bool
-    {
-        return true;
-    }
-
-    /**
-     * @param RequestInterface $request
-     *
-     * @return InvalidRequestException|null
-     */
-    public function createCsrfValidationException(RequestInterface $request): InvalidRequestException
-    {
-        return null;
     }
 
     /**
@@ -135,6 +122,11 @@ class Response extends Action implements CsrfAwareActionInterface
 
         $message = null;
 
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $quoteFactory = $objectManager->get(\Magento\Quote\Model\QuoteFactory::class);
+        $quoteManagement = $objectManager->get(\Magento\Quote\Model\QuoteManagement::class);
+        $orderSender = $objectManager->get(\Magento\Sales\Model\Order\Email\Sender\OrderSender::class);
+
         if (!$isValidPaymentGatewayResponse || !$isValidXlsBonusPaymentGatewayResponse) {
             // The response data could not be verified.
             $this->_redirect('checkout/cart', ['_secure' => true]);
@@ -151,24 +143,36 @@ class Response extends Action implements CsrfAwareActionInterface
                 $responseData[ApiFields::Status] === PaymentStatus::AUTHORIZED
                 || $responseData[ApiFields::Status] === PaymentStatus::CAPTURED
             ) {
-                // Retrieve order information from the payment gateway response data.
-                $orderId = $responseData[ApiFields::OrderId];
-                $order = $this->paymentHelper->getOrderByIncrementId($orderId);
+                $quoteIdStr = $responseData[ApiFields::OrderId];
+                $quoteId = substr($quoteIdStr, 0, strlen($quoteIdStr) - ApiFields::OrderId_SuffixLength);
+
+                $quote = $quoteFactory->create()->load($quoteId);
+                if (!$quote->getId()) {
+                    throw new \Exception('Quote not found');
+                }
+
+                $billingAddress = $quote->getBillingAddress();
+                $quote->setCustomerEmail($billingAddress->getEmail());
+
+                // Convert quote to order
+                $order = $quoteManagement->submit($quote);
+
+                // Save the order
+                $order->save();
+
+                $orderId = $order->getIncrementId();
 
                 // Mark the payment as successful and remove the quote from the customer's session.
                 $this->paymentHelper->markSuccessfulPayment($order, $responseData);
+
                 $this->checkoutSession->unsQuoteId();
+                $this->checkoutSession->setLastQuoteId($order->getQuoteId());
+                $this->checkoutSession->setLastSuccessQuoteId($order->getQuoteId());
+                $this->checkoutSession->setLastOrderId($order->getId());
+                $this->checkoutSession->setLastRealOrderId($order->getIncrementId());
+                $this->checkoutSession->setLastOrderStatus($order->getStatus());
 
-                $this->checkoutSession->setLastOrderId($order->getId())
-                    ->setLastRealOrderId($order->getIncrementId())
-                    ->setLastOrderStatus($order->getStatus())
-                    ->setLastSuccessQuoteId($order->getQuoteId())
-                    ->setLastQuoteId($order->getQuoteId());
-
-                // If the response identifies the transaction as either CANCELED, REFUSED or ERROR add an error message.
-                if (array_key_exists(ApiFields::Message, $responseData)) {
-                    $message = $responseData[ApiFields::Message];
-                }
+                $message = $responseData[ApiFields::Message];
                 $success = true;
             } else if (
                 // The payment was either canceled by the customer, refused by the payment gateway or an error occured.
@@ -176,14 +180,11 @@ class Response extends Action implements CsrfAwareActionInterface
                 || $responseData[ApiFields::Status] === PaymentStatus::REFUSED
                 || $responseData[ApiFields::Status] === PaymentStatus::ERROR
             ) {
-                // Retrieve order information from the payment gateway response data.
-                $orderId = $responseData[ApiFields::OrderId];
-
-                if ($orderId) {
-                    // Cancel the order and revert all cart contents.
-                    $order = $this->paymentHelper->getOrderByIncrementId($orderId);
-                    $this->paymentHelper->markCanceledPayment($order, $responseData);
-                }
+                $this->checkoutSession->unsLastQuoteId();
+                $this->checkoutSession->unsLastSuccessQuoteId();
+                $this->checkoutSession->unsLastOrderId();
+                $this->checkoutSession->unsLastRealOrderId();
+                $this->checkoutSession->unsLastOrderStatus();
 
                 // If the response identifies the transaction as either CANCELED, REFUSED or ERROR add an error message.
                 if (array_key_exists(ApiFields::Message, $responseData)) {
@@ -211,12 +212,38 @@ class Response extends Action implements CsrfAwareActionInterface
             $block->setOrderId($orderId);
             return $resultPage;
         } else {
+            $resultRedirect = $this->resultRedirectFactory->create();
+
             if ($success) {
-                $this->_redirect('checkout/onepage/success', ['_secure' => true]);
-                return;
+                $resultRedirect->setPath('checkout/onepage/success');
             } else {
-                $this->_redirect('checkout/onepage/failure', ['_secure' => true]);
+                $resultRedirect->setPath('checkout/onepage/failure');
             }
+
+            return $resultRedirect;
         }
     }
+
+    /**
+     * Skip CSRF checks for the requests to this action.
+     * 
+     * @param RequestInterface $request
+     *
+     * @return bool|null
+     */
+    public function validateForCsrf(RequestInterface $request): bool
+    {
+        return true;
+    }
+
+    /**
+     * @param RequestInterface $request
+     *
+     * @return InvalidRequestException|null
+     */
+    public function createCsrfValidationException(RequestInterface $request): InvalidRequestException
+    {
+        return null;
+    }
+
 }

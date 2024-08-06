@@ -81,29 +81,26 @@ class OrderPaymentSaveBefore implements \Magento\Framework\Event\ObserverInterfa
      */
     public function execute(Observer $observer)
     {
-        $order = $observer->getOrder();
-        $inputParams = $this->inputParamsResolver->resolve();
-
         // If not executing inside the Admin section
         if ($this->state->getAreaCode() != \Magento\Framework\App\Area::AREA_ADMINHTML) {
+            $order = $observer->getOrder();
 
-            foreach ($inputParams as $inputParam) {
+            if ($order != null) {
+                $paymentOrder = $order->getPayment();
 
-                if ($inputParam instanceof \Magento\Quote\Model\Quote\Payment) {
-                    $paymentData = $inputParam->getData('additional_data');
-
-                    $paymentOrder = $order->getPayment();
-                    $order = $paymentOrder->getOrder();
+                if ($paymentOrder != null) {
                     $quote = $this->quoteRepository->get($order->getQuoteId());
-                    $paymentQuote = $quote->getPayment();
-                    $method = $paymentQuote->getMethodInstance()->getCode();
 
-                    if ($method == \Cardlink\Checkout\Model\Config\Settings::CODE) {
-                        // Copy all field from the quote to the order payment object.
-                        foreach ($this->customFields as $fieldName) {
-                            if (isset($paymentData[$fieldName])) {
-                                $paymentQuote->setData($fieldName, $paymentData[$fieldName]);
-                                $paymentOrder->setData($fieldName, $paymentData[$fieldName]);
+                    if ($quote != null) {
+                        $paymentQuote = $quote->getPayment();
+                        $method = $paymentQuote->getMethodInstance()->getCode();
+
+                        if ($method == \Cardlink\Checkout\Model\Config\Settings::CODE) {
+                            // Copy all field from the quote to the order payment object.
+                            foreach ($this->customFields as $fieldName) {
+                                if ($paymentQuote->getData($fieldName)) {
+                                    $paymentOrder->setData($fieldName, $paymentQuote->getData($fieldName));
+                                }
                             }
                         }
                     }

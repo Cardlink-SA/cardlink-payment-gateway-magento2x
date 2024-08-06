@@ -10,6 +10,7 @@ use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\Session\SessionManagerInterface;
 use Magento\Framework\Controller\ResultFactory;
+use Magento\Framework\Exception\LocalizedException;
 
 /**
  * Controller action used to redirect the customer to the payment gateway to perform the payment actions for the placed order.
@@ -43,6 +44,10 @@ class Redirect extends Action
      */
     private $paymentHelper;
 
+    protected $cartManagement;
+    protected $cart;
+    protected $quote;
+
     /**
      * Controller constructor.
      * 
@@ -59,13 +64,17 @@ class Redirect extends Action
         SessionManagerInterface $coreSession,
         Logger $logger,
         Data $dataHelper,
-        Payment $paymentHelper
+        Payment $paymentHelper,
+        \Magento\Quote\Api\CartManagementInterface $cartManagement,
+        \Magento\Quote\Model\Quote $quote
     ) {
         $this->checkoutSession = $checkoutSession;
         $this->coreSession = $coreSession;
         $this->logger = $logger;
         $this->dataHelper = $dataHelper;
         $this->paymentHelper = $paymentHelper;
+        $this->cartManagement = $cartManagement;
+        $this->quote = $quote;
 
         return parent::__construct($context);
     }
@@ -76,26 +85,39 @@ class Redirect extends Action
      */
     public function execute()
     {
-        // Retrieve the order.
-        $order = $this->checkoutSession->getLastRealOrder();
-        $orderId = $order->getIncrementId();
+        $quote = $this->checkoutSession->getQuote();
+
+        if (!$quote->getId()) {
+            throw new LocalizedException(__('Unable to process your order.'));
+        }
+
+        // Set payment and shipping details
+        try {
+            $quote->getShippingAddress()->setCollectShippingRates(true);
+            $quote->collectTotals();
+            $quote->save();
+        } catch (\Exception $ex) {
+        }
 
         // Retrieve the order and compile the API request data array.
-        $formData = $this->paymentHelper->getFormDataForOrder($order);
+        $formData = $this->paymentHelper->getFormDataForOrder($quote, $this->checkoutSession);
 
         if ($formData !== false) {
+            $payment_method_code = $quote->getPayment()->getMethod();
+
             // Retrieve the page layout, get the payment redirection block, assign data to the redirection form and display the page to the customer.
             $resultPage = $this->resultFactory->create(ResultFactory::TYPE_PAGE);
             $block = $resultPage->getLayout()->getBlock('cardlinkcheckout.payment.redirect');
             $block->setData('formData', $formData);
-            $block->setData('paymentGatewayUrl', $this->paymentHelper->getPaymentGatewayDataPostUrl());
+            $block->setData('paymentGatewayUrl', $this->paymentHelper->getPaymentGatewayDataPostUrl($payment_method_code));
             return $resultPage;
+
         } else {
             // Problem found with the data. Redirect the user to the checkout failure page.
             $this->coreSession->setMessage('Invalid payment gateway data');
 
             if ($this->dataHelper->logDebugInfoEnabled()) {
-                $this->logger->debug("Invalid payment gateway data for order {$orderId}");
+                $this->logger->debug("Invalid payment gateway data for quote {$quoteId}");
             }
 
             // Redirect the customer to the checkout failure page

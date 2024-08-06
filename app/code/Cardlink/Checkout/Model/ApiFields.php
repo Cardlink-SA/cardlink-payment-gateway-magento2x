@@ -14,6 +14,7 @@ class ApiFields extends \Magento\Framework\Model\AbstractModel
     const Language = 'lang';
     const DeviceCategory = 'deviceCategory';
     const OrderId = 'orderid';
+    const OrderId_SuffixLength = 4;
     const OrderDescription = 'orderDesc';
     const OrderAmount = 'orderAmount';
     const Currency = 'currency';

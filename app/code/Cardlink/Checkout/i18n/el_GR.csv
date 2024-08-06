@@ -70,3 +70,5 @@
 "Display the IRIS logo next to the payment method title.","Εμφάνιση του λογότυπου IRIS μαζί με τον τίτλο της μεθόδου πληρωμής."
 "The payment was canceled by you or declined by the bank. Your order has been canceled.","Η πληρωμή ακυρώθηκε από εσάς ή απορρίφθηκε από την τράπεζα. Η παραγγελία σας ακυρώθηκε."
 "Failed, user canceled","Η πληρωμή απέτυχε. Ο χρήστης ακύρωσε την πληρωμή."
+"No installments","Χωρίς δόσεις"
+"Display settings for the 'Pay via Card' method are shared with this method.","Οι ρυθμίσεις εμφάνισης είναι κοινές τη μέθοδο πληρωμής μέσω κάρτας."

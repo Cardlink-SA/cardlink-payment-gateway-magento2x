@@ -60,7 +60,7 @@ class Tokenization extends AbstractHelper
      * @var DateTimeFactory
      */
     private $dateTimeFactory;
-
+    private $paymentToken;
 
     /**
      * Constructor.

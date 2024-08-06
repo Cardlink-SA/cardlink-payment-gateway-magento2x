@@ -173,9 +173,9 @@
             </group>
 
             <!--
-			<group id="cardlink_checkout_iris" translate="label comment" type="text" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="1">
+            <group id="cardlink_checkout_iris" translate="label comment" type="text" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Cardlink CheckOut - Pay via IRIS</label>
-                <comment>Merchant and display settings for the 'Pay via Card' method are shared with this method.</comment>
+                <comment>Display settings for the 'Pay via Card' method are shared with this method.</comment>
 
                 <field id="active" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Enabled</label>
@@ -213,12 +213,49 @@
                     <comment>A short description of the payment method to be displayed during the checkout.</comment>
                 </field>
 
-                <field id="dias_code" translate="label comment" type="text" sortOrder="22" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="business_partner" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Business Partner</label>
+                    <comment>Identify the business partner that will handle payment transactions as agreed with Cardlink.</comment>
+                    <source_model>Cardlink\Checkout\Model\Config\Source\BusinessPartnersIris</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="merchant_id" translate="label comment" type="text" sortOrder="31" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Merchant ID</label>
+                    <comment>The merchant ID provided by Cardlink.</comment>
+                    <frontend_class>required-entry validate-number</frontend_class>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="shared_secret" translate="label" type="obscure" sortOrder="32" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <label>Shared Secret</label>
+                    <comment>The shared secret code provided by Cardlink.</comment>
+                    <frontend_class>required-entry</frontend_class>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="transaction_environment" translate="label comment" type="select" sortOrder="33" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Transactions Environment</label>
+                    <comment>Identify the working environment for payment transactions.</comment>
+                    <source_model>Cardlink\Checkout\Model\Config\Source\TransactionEnvironments</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="dias_code" translate="label comment" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>DIAS Code</label>
                     <comment>The merchant's code on the DIAS network.</comment>
                 </field>
 
-                <field id="display_payment_method_logo" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="display_payment_method_logo" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Display IRIS Logo</label>
                     <comment>Display the IRIS logo next to the payment method title.</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
@@ -227,9 +264,16 @@
                     </depends>
                 </field>
 
+                <field id="payment_gateway_css_url" translate="label comment" type="text" sortOrder="93" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>CSS URL</label>
+                    <comment>Full URL of custom CSS stylesheet, to be used to display payment page styles.</comment>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
             </group>
-			-->
-			
+            -->
         </section>
     </system>
 </config>

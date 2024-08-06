@@ -7,8 +7,8 @@ define(
         'Magento_Checkout/js/model/quote',
         'Magento_Checkout/js/model/payment/additional-validators',
         'Magento_Checkout/js/model/full-screen-loader',
-        'Magento_Checkout/js/action/redirect-on-success',
-        'mage/url'
+        'mage/url',
+        'Magento_Checkout/js/action/set-payment-information'
     ],
     function (
         $,
@@ -16,8 +16,8 @@ define(
         quote,
         additionalValidators,
         fullScreenLoader,
-        redirectOnSuccessAction,
-        url
+        url,
+        setPaymentInformationAction
     ) {
         'use strict';
 
@@ -67,48 +67,33 @@ define(
                 return $(form).validation() && $(form).validation('isValid');
             },
 
-            /**
-             * @override
-            */
-            /** Process Payment */
-            preparePayment: function (context, event) {
+            redirectAfterPlaceOrder: false,
 
-                if (!additionalValidators.validate()) {   //Resolve checkout aggreement accept error
-                    return false;
+            placeOrder: function (data, event) {
+                if (event) {
+                    event.preventDefault();
                 }
 
-                var self = this;
+                const self = this;
 
-                fullScreenLoader.startLoader();
-                //this.messageContainer.clear();
+                setPaymentInformationAction(this.messageContainer, {
+                    method: this.getData().method,
+                    additional_data: this.getData().additional_data
+                }).done(function () {
 
-                this.isPaymentProcessing = $.Deferred();
-
-                $.when(this.isPaymentProcessing).done(
-                    function () {
-                        self.placeOrder();
+                    const redirectUrl = url.build('cardlink_checkout/payment/redirect');
+                    if (window.checkoutConfig.payment.cardlink_checkout.checkoutInIFrame) {
+                        fullScreenLoader.stopLoader();
+                        self.openPaymentGatewayInIFrame(redirectUrl);
+                    } else {
+                        fullScreenLoader.startLoader();
+                        window.location.replace(redirectUrl);
                     }
-                ).fail(
-                    function (result) {
-                        self.handleError(result);
-                    }
-                );
-
-                return;
-            },
-
-            afterPlaceOrder: function () {
-                const redirectHandlerUrl = url.build('cardlink_checkout/payment/redirect');
-                this.redirectAfterPlaceOrder = false;
-
-                if (window.checkoutConfig.payment.cardlink_checkout.checkoutInIFrame) {
+                }).fail(function () {
+                    self.isPlaceOrderActionAllowed(true);
                     fullScreenLoader.stopLoader();
-                    this.openPaymentGatewayInIFrame(redirectHandlerUrl);
-                } else {
-                    // Redirect to your controller action after place order button click
-                    redirectOnSuccessAction.redirectUrl = redirectHandlerUrl;
-                    redirectOnSuccessAction.execute();
-                }
+                });
+
                 return false;
             },
 

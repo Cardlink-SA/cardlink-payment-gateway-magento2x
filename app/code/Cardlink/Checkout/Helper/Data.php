@@ -37,8 +37,14 @@ class Data extends AbstractHelper
     const XML_PATH_CONFIG_CHECKOUT_IN_IFRAME = 'payment/cardlink_checkout/checkout_in_iframe';
     const XML_PATH_CONFIG_CSS_URL = 'payment/cardlink_checkout/css_url';
     const XML_PATH_CONFIG_LOG_DEBUG_INFO = 'payment/cardlink_checkout/log_debug_info';
+
+    const XML_PATH_CONFIG_IRIS_BUSINESS_PARTNER = 'payment/cardlink_checkout_iris/business_partner';
+    const XML_PATH_CONFIG_IRIS_TRANSACTION_ENVIRONMENT = 'payment/cardlink_checkout_iris/transaction_environment';
+    const XML_PATH_CONFIG_IRIS_MERCHANT_ID = 'payment/cardlink_checkout_iris/merchant_id';
+    const XML_PATH_CONFIG_IRIS_SHARED_SECRET = 'payment/cardlink_checkout_iris/shared_secret';
     const XML_PATH_CONFIG_IRIS_DIAS_CODE = 'payment/cardlink_checkout_iris/dias_code';
     const XML_PATH_CONFIG_IRIS_ENABLED = 'payment/cardlink_checkout_iris/active';
+    const XML_PATH_CONFIG_IRIS_CSS_URL = 'payment/cardlink_checkout_iris/css_url';
     const XML_PATH_CONFIG_IRIS_DISPLAY_PAYMENT_METHOD_LOGO = 'payment/cardlink_checkout_iris/display_payment_method_logo';
 
     /**
@@ -376,7 +382,59 @@ class Data extends AbstractHelper
     }
 
     /**
-     * Returns the URL of the Cardlink logo.
+     * Returns the configured business partner for IRIS payments.
+     *
+     * @return string
+     */
+    public function getIrisBusinessPartner()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_BUSINESS_PARTNER);
+
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI;
+        }
+
+        return $config;
+    }
+
+    /**
+     * Returns the configured transaction environment (production/test) for IRIS payments.
+     *
+     * @return string
+     */
+    public function getIrisTransactionEnvironment()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_TRANSACTION_ENVIRONMENT);
+
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT;
+        }
+
+        return $config;
+    }
+
+    /**
+     * Returns the configured merchant ID for IRIS payments.
+     *
+     * @return string
+     */
+    public function getIrisMerchantId()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_MERCHANT_ID);
+    }
+
+    /**
+     * Returns the configured shared secret code for IRIS payments.
+     *
+     * @return string
+     */
+    public function getIrisSharedSecret()
+    {
+        return $this->encryptor->decrypt(self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_SHARED_SECRET));
+    }
+
+    /**
+     * Returns the URL of the IRIS logo.
      * 
      * @return string
      */
@@ -410,6 +468,17 @@ class Data extends AbstractHelper
     public function isIrisEnabled()
     {
         return trim((string) self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_ENABLED));
+    }
+
+
+    /**
+     * Returns the configured custom CSS URL for use in the Cardlink payment gateway's pages for IRIS.
+     *
+     * @return string
+     */
+    public function getIrisCssUrl()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_CSS_URL);
     }
 
 }

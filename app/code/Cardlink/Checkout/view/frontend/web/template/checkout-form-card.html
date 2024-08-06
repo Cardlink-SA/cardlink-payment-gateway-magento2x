@@ -37,7 +37,7 @@
                         <div class="name-info">
                             <select id="cardlink_installments" name="payment[cardlink_installments]"
                                 data-validate="{ required:true }"
-                                data-bind="attr: { title: $t('Number of Installments') }, value: cardlinkInstallments, options: [...Array(maxInstallments).keys()], optionsValue: function(item){return item + 1;}, optionsText: function(item){return item + 1;}">
+                                data-bind="attr: { title: $t('Number of Installments') }, value: cardlinkInstallments, options: [...Array(maxInstallments).keys()], optionsValue: function(item){return item + 1;}, optionsText: function(item){return item == 0 ? $t('No installments') : item + 1;}">
                             </select>
                         </div>
                     </div>

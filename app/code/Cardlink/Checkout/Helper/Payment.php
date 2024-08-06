@@ -163,10 +163,15 @@ class Payment extends AbstractHelper
      *
      * @return string The URL of the payment gateway.
      */
-    public function getPaymentGatewayDataPostUrl()
+    public function getPaymentGatewayDataPostUrl($payment_method_code)
     {
-        $businessPartner = $this->dataHelper->getBusinessPartner();
-        $transactionEnvironment = $this->dataHelper->getTransactionEnvironment();
+        if ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsIris::CODE) {
+            $businessPartner = $this->dataHelper->getIrisBusinessPartner();
+            $transactionEnvironment = $this->dataHelper->getIrisTransactionEnvironment();
+        } else {
+            $businessPartner = $this->dataHelper->getBusinessPartner();
+            $transactionEnvironment = $this->dataHelper->getTransactionEnvironment();
+        }
 
         if ($transactionEnvironment == \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT) {
             switch ($businessPartner) {
@@ -266,23 +271,25 @@ class Payment extends AbstractHelper
     /**
      * Loads the order information for
      * 
-     * @param int|string $orderId The entity ID of the order.
+     * @param Quote $quote The entity of the quote.
      * @return array An associative array containing the data that will be sent to the payment gateway's API endpoint to perform the requested transaction.
      */
-    public function getFormDataForOrder($order)
+    public function getFormDataForOrder($quote, $checkoutSession)
     {
-        $orderId = $order->getIncrementId();
+        $quoteId = $quote->getEntityId();
 
-        $billingAddress = $order->getBillingAddress();
-        $shippingAddress = $order->getShippingAddress();
-        $payment = $order->getPayment();
+        $billingAddress = $quote->getBillingAddress();
+        $shippingAddress = $quote->getShippingAddress();
+        $payment = $quote->getPayment();
 
         if ($billingAddress == false || $shippingAddress == false) {
             if ($this->dataHelper->logDebugInfoEnabled()) {
-                $this->_logger->error("Invalid billing/shipping address for order {$orderId}.");
+                $this->_logger->error("Invalid billing/shipping address for quote {$quoteId}.");
             }
             return false;
         }
+
+        $payerEmail = $billingAddress->getEmail();
 
         // Version number - must be '2'
         $formData[ApiFields::Version] = '2';
@@ -299,24 +306,23 @@ class Payment extends AbstractHelper
         $formData[ApiFields::CancelUrl] = $this->getTransactionCancelUrl();
 
         // Order information
-        $formData[ApiFields::OrderId] = $orderId;
-        $formData[ApiFields::OrderAmount] = floatval($order->getGrandTotal()); // Get order total amount
-        $formData[ApiFields::Currency] = $order->getOrderCurrencyCode(); // Get order currency code
+        $formData[ApiFields::OrderId] = $quoteId . 'x' . self::incrementalHash(ApiFields::OrderId_SuffixLength - 1);
+        $formData[ApiFields::OrderAmount] = floatval($quote->getGrandTotal()); // Get order total amount
+        $formData[ApiFields::Currency] = $quote->getQuoteCurrencyCode(); // Get order currency code
 
         $diasCode = $this->dataHelper->getDiasCode();
         $enableIrisPayments = $this->dataHelper->isIrisEnabled() && $diasCode != '';
 
-        $method = $payment->getMethodInstance();
-        $payment_method_code = $method->getCode();
+        $payment_method_code = $checkoutSession->getQuote()->getPayment()->getMethod();
 
-        if ($payment_method_code == 'cardlink_checkout_iris' && $enableIrisPayments) {
+        if ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsIris::CODE && $enableIrisPayments) {
 
             // The Merchant ID
             $formData[ApiFields::MerchantId] = $this->dataHelper->getIrisMerchantId();
             $sharedSecret = $this->dataHelper->getIrisSharedSecret();
 
             $formData[ApiFields::PaymentMethod] = 'IRIS';
-            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $formData[ApiFields::OrderId], $formData[ApiFields::OrderAmount]);
+            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $quoteId, $formData[ApiFields::OrderAmount]);
             $formData[ApiFields::TransactionType] = '1';
 
             // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
@@ -326,9 +332,9 @@ class Payment extends AbstractHelper
 
             // The Merchant ID
             $formData[ApiFields::MerchantId] = $this->dataHelper->getMerchantId();
-            $sharedSecrete = $this->dataHelper->getSharedSecret();
+            $sharedSecret = $this->dataHelper->getSharedSecret();
 
-            $formData[ApiFields::OrderDescription] = 'ORDER ' . $orderId;
+            $formData[ApiFields::OrderDescription] = 'QUOTE ' . $quoteId;
 
             // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
             $cssUrl = trim((string) $this->dataHelper->getCssUrl());
@@ -338,7 +344,7 @@ class Payment extends AbstractHelper
                 // Enforce installments limit
                 $maxInstallments = $this->getMaxInstallments($formData[ApiFields::OrderAmount]);
 
-                $installments = max(0, min($maxInstallments, $order->getPayment()->getCardlinkInstallments() + 0));
+                $installments = max(0, min($maxInstallments, $quote->getPayment()->getCardlinkInstallments() + 0));
 
                 if ($installments > 1) {
                     $formData[ApiFields::ExtInstallmentoffset] = 0;
@@ -350,7 +356,7 @@ class Payment extends AbstractHelper
             if ($this->dataHelper->allowsTokenization()) {
                 if ($payment->getCardlinkStoredToken() > 0) {
                     $paymentToken = $this->tokenizationHelper->getCustomerPaymentToken(
-                        $order->getCustomerId(),
+                        $quote->getCustomerId(),
                         $payment->getCardlinkStoredToken()
                     );
 
@@ -366,7 +372,7 @@ class Payment extends AbstractHelper
         }
 
         // Payer/customer information
-        $formData[ApiFields::PayerEmail] = $billingAddress->getEmail();
+        $formData[ApiFields::PayerEmail] = $payerEmail;
         $formData[ApiFields::PayerPhone] = $billingAddress->getTelephone();
 
         // Billing information
@@ -389,18 +395,33 @@ class Payment extends AbstractHelper
 
         // Instruct the payment gateway to use the store language for its UI.
         if ($this->dataHelper->getForceStoreLanguage()) {
-            $formData[ApiFields::Language] = explode('_', (string) $order->getStore()->getLocaleCode())[0];
+            $formData[ApiFields::Language] = explode('_', (string) $quote->getStore()->getLocaleCode())[0];
         }
 
         // Calculate the digest of the transaction request data and append it.
         $signedFormData = self::signRequestFormData($formData, $sharedSecret);
 
         if ($this->dataHelper->logDebugInfoEnabled()) {
-            $this->logger->debug("Valid payment request created for order {$signedFormData[ApiFields::OrderId]}.");
+            $this->logger->debug("Valid payment request created for quote {$quoteId}.");
             $this->logger->debug(json_encode($signedFormData, JSON_PRETTY_PRINT));
         }
 
         return $signedFormData;
+    }
+
+    public function incrementalHash($len = 3)
+    {
+        $charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        $base = strlen($charset);
+        $result = '';
+
+        $now = (int) explode(' ', microtime())[1];
+        while ($now >= $base) {
+            $i = (int) $now % (int) $base;
+            $result = $charset[$i] . $result;
+            $now /= $base;
+        }
+        return substr($result, -1 * $len);
     }
 
     /**
@@ -604,6 +625,7 @@ class Payment extends AbstractHelper
                 if ($order->hasInvoices()) {
                     $order->setBaseTotalInvoiced($charge);
                     $order->setTotalInvoiced($charge);
+                    $order->setBaseTotalPaid($charge);
                     $order->setTotalPaid($charge);
 
                     try {
@@ -619,7 +641,8 @@ class Payment extends AbstractHelper
 
                     foreach ($order->getInvoiceCollection() as $orderInvoice) {
                         $orderInvoice->setState(\Magento\Sales\Model\Order\Invoice::STATE_PAID)
-                            ->setTransactionId($responseData[ApiFields::TransactionId])
+                            // Only set TransactionId when possible to perform online refunds
+                            //->setTransactionId($responseData[ApiFields::TransactionId])
                             ->setBaseGrandTotal($charge)
                             ->setGrandTotal($charge)
                             ->save();
@@ -643,36 +666,35 @@ class Payment extends AbstractHelper
                     ApiFields::MerchantId => $responseData[ApiFields::MerchantId],
                     ApiFields::TransactionId => $responseData[ApiFields::TransactionId],
                     ApiFields::PaymentReferenceId => $responseData[ApiFields::PaymentReferenceId],
-                    ApiFields::Message => $responseData[ApiFields::Message]
+                    ApiFields::Message => array_key_exists(ApiFields::Message, $responseData) ? $responseData[ApiFields::Message] : ''
                 ]
             );
-
             $customerId = $order->getCustomerId();
 
             // If payment method tokenization is allowed.
-            if ($this->dataHelper->allowsTokenization()) {
+            if ($customerId > 0 && $this->dataHelper->allowsTokenization()) {
                 // If the user asked for card tokenization.
                 if (
                     $payment->getCardlinkTokenizeCard()
-                    && $payment->getCardlinkStoredToken() == '0'
+                    && array_key_exists(ApiFields::ExtToken, $responseData)
                 ) {
                     if ($this->dataHelper->logDebugInfoEnabled()) {
                         $this->logger->debug("Storing token {$responseData[ApiFields::PaymentMethod]}/{$responseData[ApiFields::ExtTokenPanEnd]} for customer {$customerId}.");
                     }
 
-                    if (array_key_exists(ApiFields::ExtToken, $responseData)) {
-                        // Store the tokenized card information.
-                        $storedToken = $this->tokenizationHelper->storeTokenForCustomer(
-                            $customerId,
-                            $responseData[ApiFields::ExtToken],
-                            $responseData[ApiFields::PaymentMethod],
-                            $responseData[ApiFields::ExtTokenPanEnd],
-                            $responseData[ApiFields::ExtTokenExpiration]
-                        );
+                    // Store the tokenized card information.
+                    $storedToken = $this->tokenizationHelper->storeTokenForCustomer(
+                        $customerId,
+                        $responseData[ApiFields::ExtToken],
+                        $responseData[ApiFields::PaymentMethod],
+                        $responseData[ApiFields::ExtTokenPanEnd],
+                        $responseData[ApiFields::ExtTokenExpiration]
+                    );
 
+                    if ($storedToken != null) {
                         $payment->setCardlinkStoredToken($storedToken->getEntityId());
+                        $payment->save();
                     }
-                    $payment->save();
                 }
 
                 $paymentToken = $this->tokenizationHelper->getCustomerPaymentToken($customerId, $payment->getCardlinkStoredToken());
@@ -786,6 +808,18 @@ class Payment extends AbstractHelper
     {
         $order = $this->orderFactory->create();
         $this->orderResource->load($order, $incrementId, OrderInterface::INCREMENT_ID);
+        return $order;
+    }
+
+    /**
+     * Retrieve an order using its database entity ID
+     * @param string $orderId The database entity ID of the order.
+     * @return \Magento\Sales\Api\Data\OrderInterface|null The order object if found. Otherwise, null.
+     */
+    public function getOrderById($orderId)
+    {
+        $order = $this->orderFactory->create();
+        $this->orderResource->load($order, $orderId, OrderInterface::ENTITY_ID);
         return $order;
     }
 
