@@ -10,6 +10,9 @@
 
 ## Changelog
 
+- **1.0.5**
+  - Fixed guest checkout bug.
+
 - **1.0.4**
   - Minor bug fixes.
 
@@ -98,7 +101,7 @@ If you are using Plesk and nginx in proxy mode, under ``Apache & nginx Setting f
 proxy_cookie_path / "/; SameSite=None; Secure";
 ```
 
-Also add the following configuration lines for Apache in the ``Additional Apache directives`` section on the same page. By default, Plesk has the Apache ``mod_headers`` module installed and active however, verify that this is the case for your Plesk installation.
+If you are only using Apache, add the following configuration lines in the ``Additional Apache directives`` section on the same page. By default, Plesk has the Apache ``mod_headers`` module installed and active however, verify that this is the case for your Plesk installation.
 
 ```
 <IfModule mod_headers.c>

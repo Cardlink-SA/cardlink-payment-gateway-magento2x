@@ -8,6 +8,9 @@ use Cardlink\Checkout\Model\PaymentStatus;
 use Cardlink\Checkout\Helper\Data;
 use Cardlink\Checkout\Helper\Payment;
 use Magento\Checkout\Model\Session;
+
+use Magento\Framework\App\CsrfAwareActionInterface;
+
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\Controller\ResultFactory;
@@ -16,7 +19,7 @@ use Magento\Framework\Message\ManagerInterface;
 use Magento\Framework\Controller\Result\RedirectFactory;
 use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
-use Magento\Framework\App\CsrfAwareActionInterface;
+use Magento\Sales\Model\OrderFactory;
 
 /**
  * Controller action used to handle responses from the payment gateway.
@@ -60,6 +63,8 @@ class Response extends Action implements CsrfAwareActionInterface
      */
     protected $resultRedirectFactory;
 
+    protected $orderFactory;
+
     /**
      * Controller constructor.
      * 
@@ -79,7 +84,8 @@ class Response extends Action implements CsrfAwareActionInterface
         RedirectFactory $resultRedirectFactory,
         Logger $logger,
         Data $dataHelper,
-        Payment $paymentHelper
+        Payment $paymentHelper,
+        OrderFactory $orderFactory
 
     ) {
         $this->checkoutSession = $checkoutSession;
@@ -90,6 +96,7 @@ class Response extends Action implements CsrfAwareActionInterface
 
         $this->dataHelper = $dataHelper;
         $this->paymentHelper = $paymentHelper;
+        $this->orderFactory = $orderFactory;
 
         return parent::__construct($context);
     }
@@ -151,28 +158,16 @@ class Response extends Action implements CsrfAwareActionInterface
                     throw new \Exception('Quote not found');
                 }
 
-                $billingAddress = $quote->getBillingAddress();
-                $quote->setCustomerEmail($billingAddress->getEmail());
-
                 // Convert quote to order
-                $order = $quoteManagement->submit($quote);
-
-                // Save the order
-                $order->save();
-
-                $orderId = $order->getIncrementId();
+                $orderId = $quoteManagement->placeOrder($quoteId);
+                $order = $this->orderFactory->create()->loadByIncrementId($orderId);
 
                 // Mark the payment as successful and remove the quote from the customer's session.
                 $this->paymentHelper->markSuccessfulPayment($order, $responseData);
 
-                $this->checkoutSession->unsQuoteId();
-                $this->checkoutSession->setLastQuoteId($order->getQuoteId());
-                $this->checkoutSession->setLastSuccessQuoteId($order->getQuoteId());
-                $this->checkoutSession->setLastOrderId($order->getId());
-                $this->checkoutSession->setLastRealOrderId($order->getIncrementId());
-                $this->checkoutSession->setLastOrderStatus($order->getStatus());
-
-                $message = $responseData[ApiFields::Message];
+                $message = array_key_exists(ApiFields::Message, $responseData)
+                    ? $responseData[ApiFields::Message]
+                    : '';
                 $success = true;
             } else if (
                 // The payment was either canceled by the customer, refused by the payment gateway or an error occured.
@@ -245,5 +240,4 @@ class Response extends Action implements CsrfAwareActionInterface
     {
         return null;
     }
-
 }

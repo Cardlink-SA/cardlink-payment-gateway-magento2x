@@ -19,6 +19,10 @@ use Magento\Framework\Exception\LocalizedException;
  */
 class Redirect extends Action
 {
+    const METHOD_GUEST = 'guest';
+    const METHOD_REGISTER = 'register';
+    const METHOD_CUSTOMER = 'customer';
+
     /**
      * @var Logger
      */
@@ -95,8 +99,19 @@ class Redirect extends Action
         try {
             $quote->getShippingAddress()->setCollectShippingRates(true);
             $quote->collectTotals();
+
+            if ($quote->getCheckoutMethod() == null) {
+                $quote->setCheckoutMethod(self::METHOD_GUEST);
+            }
+            if ($quote->getCustomerEmail() == null) {
+                $billingAddress = $quote->getBillingAddress();
+                $quote->setCustomerEmail($billingAddress->getEmail());
+            }
             $quote->save();
         } catch (\Exception $ex) {
+            header('Content-Type: text/plain');
+            var_dump($ex->getMessage());
+            die();
         }
 
         // Retrieve the order and compile the API request data array.
