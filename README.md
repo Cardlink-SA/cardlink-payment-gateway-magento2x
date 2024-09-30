@@ -10,27 +10,24 @@
 
 ## Changelog
 
-- **1.0.5**
-  - Fixed guest checkout bug.
-
-- **1.0.4**
-  - Minor bug fixes.
-
+- **1.0.0**
+  - Initial release
+- **1.0.1**
+  - Only send order confirmation email to customer when the order has been successfully paid for.
+  - Auto cancel order after 30 minutes in pending payment state.
+- **1.0.2**
+  - Fixed a bug that failed checkout with PayPal Standard.
+  - Changed auto cancel order period to 60 minutes.
 - **1.0.3**
   - Order creation only happens after successful payment.
   - Fixed bug with credit memo creation.
   - Fixed bug with reorder in admin.
-
-- **1.0.2**
-  - Fixed a bug that failed checkout with PayPal Standard.
-  - Changed auto cancel order period to 60 minutes.
-
-- **1.0.1**
-  - Only send order confirmation email to customer when the order has been successfully paid for.
-  - Auto cancel order after 30 minutes in pending payment state.
-
-- **1.0.0**
-  - Initial release
+- **1.0.4**
+  - Minor bug fixes.
+- **1.0.5**
+  - Fixed guest checkout bug.
+- **1.1.0**
+  - Added support for IRIS payments.
 
 ## Description
 
@@ -53,10 +50,11 @@ Once you have completed the requested tests and any changes to your website, you
 9. Translation ready for Greek & English languages.
 10. Automatically cancel pending payment orders after 60 minutes.
 11. Only send the order confirmation email to the customer after a successful payment.
+12. Support for IRIS payments.
 
 ## Installation
 
-You need to manually upload the contents of the .zip file of the module’s latest version to your server’s web root folder that your Magento store is installed. You will first need to extract the file’s contents to a temporary folder. Then, go to the ``Cardlink\Checkout\Controller\Payment`` folder. Replace the Response.php file with the file that corresponds to your installed Magento version, ``Response-v2.2.php`` for any 2.2.x version and ``Response-v2.3.php`` for any version 2.3.x-2.4.x.
+You need to manually upload the contents of the .zip file of the module’s latest version to your server’s web root folder that your Magento store is installed. You will first need to extract the file’s contents to a temporary folder. Then, go to the ``Cardlink\Checkout\Controller\Payment`` folder. If you are using previous Magento version 2.2.x, replace the ``Response.php`` file with the contents of file ``Response-v2.2.php``.
 
 Depending on your hosting provider, you will probably have to be familiar with the process of transferring files using an FTP or SFTP client. If no FTP/SFTP access is provided, use your hosting provider’s administration panel to upload the folders to the folder of your Magento installation. 
 
@@ -109,8 +107,13 @@ Header always edit Set-Cookie ^(.*)$ $1;SameSite=None;Secure
 </IfModule>
 ```
 
+#### Custom or Unknown Hosting
 
-If you are unsure or unfamiliar with the actions described above, please ask a trained IT person or contact your hosting provider to do them for you.
+If you do not have full control of your hosting services, or not very confident with such changes, you can try installing the [Veriteworks CookieFix](https://github.com/Veriteworks/CookieFix) extension.
+Follow the instructions on the extensions Github page and set the SameSite setting to None.
+
+
+If you are still unsure or unfamiliar with the actions described above, please ask a trained IT person or contact your hosting provider to do them for you.
 
 ## Screenshots
 

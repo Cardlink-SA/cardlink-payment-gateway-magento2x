@@ -169,10 +169,9 @@
                         <field id="enable">1</field>
                     </depends>
                 </field>
-
             </group>
 
-            <!--
+
             <group id="cardlink_checkout_iris" translate="label comment" type="text" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Cardlink CheckOut - Pay via IRIS</label>
                 <comment>Display settings for the 'Pay via Card' method are shared with this method.</comment>
@@ -273,7 +272,7 @@
                 </field>
 
             </group>
-            -->
+
         </section>
     </system>
 </config>

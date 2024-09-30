@@ -477,7 +477,7 @@ class Payment extends AbstractHelper
 
         $orderIdNum = (int) filter_var($orderId, FILTER_SANITIZE_NUMBER_INT);
 
-        $randomNumber = str_pad($orderIdNum, 13, '0', STR_PAD_LEFT);
+        $randomNumber = substr(str_pad($orderIdNum, 13, '0', STR_PAD_LEFT), -13);
         $paymentCode = $paymentSum ? ($paymentSum % 8) : '8';
         $systemCode = '12';
         $tempCode = $diasCustomerCode . $paymentCode . $systemCode . $randomNumber . '271500';

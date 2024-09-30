@@ -8,9 +8,14 @@ use Cardlink\Checkout\Model\PaymentStatus;
 use Cardlink\Checkout\Helper\Data;
 use Cardlink\Checkout\Helper\Payment;
 use Magento\Checkout\Model\Session;
+
+use Magento\Framework\App\CsrfAwareActionInterface;
+
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
+use Magento\Framework\Data\Form\FormKey;
 use Magento\Framework\UrlInterface;
 use Magento\Framework\Message\ManagerInterface;
 use Magento\Framework\Controller\Result\RedirectFactory;
@@ -18,13 +23,19 @@ use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Sales\Model\OrderFactory;
 
+
 /**
  * Controller action used to handle responses from the payment gateway.
  * 
  * @author Cardlink S.A.
  */
-class Response extends Action
+class Response extends Action implements CsrfAwareActionInterface, HttpPostActionInterface
 {
+    /**
+     * @var FormKey
+     */
+    protected $formKey;
+
     /**
      * @var Logger
      */
@@ -82,8 +93,8 @@ class Response extends Action
         Logger $logger,
         Data $dataHelper,
         Payment $paymentHelper,
-        OrderFactory $orderFactory
-
+        OrderFactory $orderFactory,
+        FormKey $formKey
     ) {
         $this->checkoutSession = $checkoutSession;
         $this->messageManager = $messageManager;
@@ -94,6 +105,7 @@ class Response extends Action
         $this->dataHelper = $dataHelper;
         $this->paymentHelper = $paymentHelper;
         $this->orderFactory = $orderFactory;
+        $this->formKey = $formKey;
 
         return parent::__construct($context);
     }
@@ -162,6 +174,9 @@ class Response extends Action
                 // Mark the payment as successful and remove the quote from the customer's session.
                 $this->paymentHelper->markSuccessfulPayment($order, $responseData);
 
+                $quote->setIsActive(false);
+                $quote->save();
+
                 $message = array_key_exists(ApiFields::Message, $responseData)
                     ? $responseData[ApiFields::Message]
                     : '';
@@ -188,6 +203,12 @@ class Response extends Action
                 $this->messageManager->addErrorMessage(__($message));
             }
         }
+
+        // Regenerate a new form key
+        $newFormKey = $this->formKey->getFormKey();
+
+        // Optionally set the new form key in the request
+        $this->getRequest()->setParam('form_key', $newFormKey);
 
         // If the payment flow executed inside the IFRAME, send out a redirection form page to force open the final response page in the parent frame (store window/tab).
         if ($this->dataHelper->doCheckoutInIframe()) {
@@ -237,5 +258,4 @@ class Response extends Action
     {
         return null;
     }
-
 }

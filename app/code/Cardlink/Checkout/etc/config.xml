@@ -46,7 +46,6 @@
 
             </cardlink_checkout>
 
-            <!--
             <cardlink_checkout_iris>
                 <model>CardlinkCheckoutIrisFacade</model>
                 <active>0</active>
@@ -76,9 +75,8 @@
                 <business_partner>cardlink</business_partner>
                 <transaction_environment>sandbox</transaction_environment>
                 <dias_code></dias_code>
-
             </cardlink_checkout_iris>
-            -->
+
         </payment>
     </default>
 </config>
