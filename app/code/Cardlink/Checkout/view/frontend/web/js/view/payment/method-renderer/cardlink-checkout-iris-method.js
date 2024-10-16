@@ -80,28 +80,15 @@ define(
                     method: this.getData().method,
                     additional_data: this.getData().additional_data
                 }).done(function () {
-
                     const redirectUrl = url.build('cardlink_checkout/payment/redirect');
-                    if (window.checkoutConfig.payment.cardlink_checkout.checkoutInIFrame) {
-                        fullScreenLoader.stopLoader();
-                        self.openPaymentGatewayInIFrame(redirectUrl);
-                    } else {
-                        fullScreenLoader.startLoader();
-                        window.location.replace(redirectUrl);
-                    }
+                    fullScreenLoader.startLoader();
+                    window.location.replace(redirectUrl);
                 }).fail(function () {
                     self.isPlaceOrderActionAllowed(true);
                     fullScreenLoader.stopLoader();
                 });
 
                 return false;
-            },
-
-            /** Redirect to payment provider inside an IFRAME */
-            openPaymentGatewayInIFrame: function (gatewayurl) {
-                const cardlinkCheckoutModal = document.getElementById('cardlink_checkout--modal');
-                document.getElementById('cardlink_checkout--modal-iframe').src = gatewayurl;
-                cardlinkCheckoutModal.style.display = "block";
             }
         });
     }

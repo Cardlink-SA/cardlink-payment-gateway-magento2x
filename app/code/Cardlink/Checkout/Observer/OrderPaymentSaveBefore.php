@@ -89,17 +89,21 @@ class OrderPaymentSaveBefore implements \Magento\Framework\Event\ObserverInterfa
                 $paymentOrder = $order->getPayment();
 
                 if ($paymentOrder != null) {
-                    $quote = $this->quoteRepository->get($order->getQuoteId());
+                    $paymentMethod = $paymentOrder->getMethod();
 
-                    if ($quote != null) {
-                        $paymentQuote = $quote->getPayment();
-                        $method = $paymentQuote->getMethodInstance()->getCode();
+                    if ($paymentMethod == \Cardlink\Checkout\Model\Config\Settings::CODE) {
+                        $quote = $this->quoteRepository->get($order->getQuoteId());
 
-                        if ($method == \Cardlink\Checkout\Model\Config\Settings::CODE) {
-                            // Copy all field from the quote to the order payment object.
-                            foreach ($this->customFields as $fieldName) {
-                                if ($paymentQuote->getData($fieldName)) {
-                                    $paymentOrder->setData($fieldName, $paymentQuote->getData($fieldName));
+                        if ($quote != null) {
+                            $paymentQuote = $quote->getPayment();
+                            $method = $paymentQuote->getMethodInstance()->getCode();
+
+                            if ($method == \Cardlink\Checkout\Model\Config\Settings::CODE) {
+                                // Copy all field from the quote to the order payment object.
+                                foreach ($this->customFields as $fieldName) {
+                                    if ($paymentQuote->getData($fieldName)) {
+                                        $paymentOrder->setData($fieldName, $paymentQuote->getData($fieldName));
+                                    }
                                 }
                             }
                         }

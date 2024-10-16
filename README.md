@@ -10,24 +10,32 @@
 
 ## Changelog
 
-- **1.0.0**
-  - Initial release
-- **1.0.1**
-  - Only send order confirmation email to customer when the order has been successfully paid for.
-  - Auto cancel order after 30 minutes in pending payment state.
-- **1.0.2**
-  - Fixed a bug that failed checkout with PayPal Standard.
-  - Changed auto cancel order period to 60 minutes.
+- **1.1.1**
+  - Minor fixes.
+  - Updated README.
+  - Added check for payment method code in OrderPaymentSaveBefore observer.
+- **1.1.0**
+  - Added support for IRIS payments.
+- **1.0.5**
+  - Fixed guest checkout bug.
+- **1.0.4**
+  - Minor bug fixes.
 - **1.0.3**
   - Order creation only happens after successful payment.
   - Fixed bug with credit memo creation.
   - Fixed bug with reorder in admin.
-- **1.0.4**
-  - Minor bug fixes.
-- **1.0.5**
-  - Fixed guest checkout bug.
-- **1.1.0**
-  - Added support for IRIS payments.
+- **1.0.2**
+  - Fixed a bug that failed checkout with PayPal Standard.
+  - Changed auto cancel order period to 60 minutes.
+- **1.0.1**
+  - Only send order confirmation email to customer when the order has been successfully paid for.
+  - Auto cancel order after 30 minutes in pending payment state.
+- **1.0.0**
+  - Initial release
+
+##  Support tickets
+
+In case that you face any technical issue during the installation process, you can contact the Cardlink e-commerce team at ecommerce_support@cardlink.gr.
 
 ## Description
 
@@ -50,7 +58,8 @@ Once you have completed the requested tests and any changes to your website, you
 9. Translation ready for Greek & English languages.
 10. Automatically cancel pending payment orders after 60 minutes.
 11. Only send the order confirmation email to the customer after a successful payment.
-12. Support for IRIS payments.
+12. Support for IRIS payments for Nexi acquirer only.
+13.	The IFRAME feature is not supported for IRIS payments
 
 ## Installation
 
@@ -119,12 +128,13 @@ If you are still unsure or unfamiliar with the actions described above, please a
 
 1. The Cardlink Payment Gateway settings screen used to configure the main Cardlink gateway (``Stores > Configuration > Sales > Payment Methods``).
 
-![screencapture-admin-admin-system-config-edit-section-payment](screencapture-admin-admin-system-config-edit-section-payment.png)
+![screencapture-admin-admin-system-config-edit-section-payment](README-IMAGES/screencapture-admin-admin-system-config-edit-section-payment.png)
 
 2. This is the front-end of Cardlink Payment Gateway plugin located in checkout page
 
-![screencapture-checkout](screencapture-checkout.png)
+![screencapture-checkout](README-IMAGES/screencapture-checkout.png)
 
-##  Support tickets
+3. To set up IRIS payments, you will need to have the Merchant ID, Shared Secret and DIAS Customer ID specifically issued for use with IRIS. Other settings are similar to the ones for Card Payments.
 
-In case that you face any technical issue during the installation process, you can contact the Cardlink e-commerce team at ecommerce_support@cardlink.gr .
+![screen-capture-admin-system-iris-configuration](README-IMAGES/screen-capture-admin-system-iris-configuration.png)
+
