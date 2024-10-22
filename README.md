@@ -10,6 +10,8 @@
 
 ## Changelog
 
+- **1.1.2**
+  - Require merchant information when activating payment methods.
 - **1.1.1**
   - Minor fixes.
   - Updated README.
