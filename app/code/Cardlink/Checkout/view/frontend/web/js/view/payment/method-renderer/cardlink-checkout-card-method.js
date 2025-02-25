@@ -142,16 +142,18 @@ define(
             },
 
             getData: function () {
-                var data = {
-                    'method': this.item.method,
-                    'additional_data': {
-                        'cardlink_tokenize_card': $('#cardlink_tokenize_card').val(),
-                        'cardlink_stored_token': $('.cardlink_checkout_token_option:checked').val(),
-                        'cardlink_installments': $('#cardlink_installments').val()
-                    }
+                const tokenizeCheckbox = $('#cardlink_tokenize_card');
+                const storedToken = $('.cardlink_checkout_token_option:checked');
+                const installments = $('#cardlink_installments');
+                const additionalData = {
+                    'cardlink_tokenize_card': tokenizeCheckbox.prop('checked') ? '1' : '0',
+                    'cardlink_stored_token': storedToken.length ? storedToken.val() : '',
+                    'cardlink_installments': installments.val() || ''
                 };
-
-                data['additional_data'] = _.extend(data['additional_data'], this.additionalData);
+                const data = {
+                    'method': this.item.method,
+                    'additional_data': _.extend({}, additionalData, this.additionalData)
+                };
                 return data;
             },
 

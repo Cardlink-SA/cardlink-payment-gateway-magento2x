@@ -169,6 +169,25 @@
                         <field id="enable">1</field>
                     </depends>
                 </field>
+
+                <field id="hold_stock_order" translate="label" type="select" sortOrder="95" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Create Order and hold stock</label>
+                    <comment>Yes to create order and hold stock, No to create order only after successful payment</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="canceled_order_expiration" translate="label comment" sortOrder="96" type="text" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Cancel order after</label>
+                    <comment>New order expires after N minutes. Valid range: 10 to 60 minutes. Leave empty to disable.</comment>
+                    <frontend_class>validate-greater-than-zero validate-digits-range digits-range-10-60</frontend_class>
+                    <depends>
+                        <field id="enable">1</field>
+                        <field id="hold_stock_order">1</field>
+                    </depends>
+                </field>
             </group>
 
 
@@ -268,6 +287,25 @@
                     <comment>Full URL of custom CSS stylesheet, to be used to display payment page styles.</comment>
                     <depends>
                         <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="hold_stock_order" translate="label" type="select" sortOrder="94" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Create Order and hold stock</label>
+                    <comment>Yes to create order and hold stock, No to create order only after successful payment</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
+                </field>
+
+                <field id="canceled_order_expiration" translate="label comment" sortOrder="95" type="text" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Cancel order after</label>
+                    <comment>New order expires after N minutes. Valid range: 10 to 60 minutes. Leave empty to disable.</comment>
+                    <frontend_class>validate-greater-than-zero validate-digits-range digits-range-10-60</frontend_class>
+                    <depends>
+                        <field id="enable">1</field>
+                        <field id="hold_stock_order">1</field>
                     </depends>
                 </field>
 

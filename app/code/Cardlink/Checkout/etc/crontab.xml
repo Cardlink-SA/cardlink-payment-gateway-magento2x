@@ -5,6 +5,9 @@
         <!-- <job instance="Cardlink\Checkout\Cron\CheckUpdate" method="execute" name="cardlink_checkout_check_update_cron">
             <schedule>0 */8 * * *</schedule>
         </job> -->
+        <job instance="Cardlink\Checkout\Cron\AutoCancelPendingOrders" method="execute" name="cardlink_checkout_auto_cancel_pending_orders">
+            <schedule>*/5 * * * *</schedule>
+        </job>
     </group>
 
 </config>

@@ -10,6 +10,14 @@
 
 ## Changelog
 
+- **1.2.1**
+  - Minor fixes in the cron task and related admin field.
+  - Limit added to that field with a valid range of 10-60 minutes. Leave empty to disable feature.
+  - Updated README.
+- **1.2.0**
+  - Added configurable order creation and stock management (option to create order before or after successful payment)
+  - Enhanced automatic order cancellation system (option to configure expiration time)
+  - Updated README.
 - **1.1.2**
   - Require merchant information when activating payment methods.
 - **1.1.1**
@@ -58,14 +66,19 @@ Once you have completed the requested tests and any changes to your website, you
 7. In-store checkout option: the merchant can configure the payment process to take place inside a pop up with IFRAME to mask the redirection process from the customers.
 8. A text field for providing the absolute or relative (to Cardlink Payment Gateway location on server) URL of custom CSS stylesheet, to apply custom CSS styles in the payment page.
 9. Translation ready for Greek & English languages.
-10. Automatically cancel pending payment orders after 60 minutes.
+10. Configurable automatic cancellation of pending orders.
 11. Only send the order confirmation email to the customer after a successful payment.
 12. Support for IRIS payments for Nexi acquirer only.
-13.	The IFRAME feature is not supported for IRIS payments
+13.	The IFRAME feature is not supported for IRIS payments.
+14. Configurable Order creation (before or after successful payment)
+
 
 ## Installation
 
-You need to manually upload the contents of the .zip file of the module’s latest version to your server’s web root folder that your Magento store is installed. You will first need to extract the file’s contents to a temporary folder. Then, go to the ``Cardlink\Checkout\Controller\Payment`` folder. If you are using previous Magento version 2.2.x, replace the ``Response.php`` file with the contents of file ``Response-v2.2.php``.
+You need to manually upload the contents of the .zip file of the module’s latest version to your server’s web root folder that your Magento store is installed.
+You will first need to extract the file’s contents to a temporary folder. Then, go to the ``Cardlink\Checkout\Controller\Payment`` folder.
+If you are using previous Magento version 2.2.x, replace the ``Response.php`` file with the contents of file ``Response-v2.2.php``.
+A message will be displayed during magento 2 setup commands if this file has not been replaced so the admin is aware.
 
 Depending on your hosting provider, you will probably have to be familiar with the process of transferring files using an FTP or SFTP client. If no FTP/SFTP access is provided, use your hosting provider’s administration panel to upload the folders to the folder of your Magento installation. 
 
@@ -139,4 +152,8 @@ If you are still unsure or unfamiliar with the actions described above, please a
 3. To set up IRIS payments, you will need to have the Merchant ID, Shared Secret and DIAS Customer ID specifically issued for use with IRIS. Other settings are similar to the ones for Card Payments.
 
 ![screen-capture-admin-system-iris-configuration](README-IMAGES/screen-capture-admin-system-iris-configuration.png)
+
+4. To create orders (and thus hold stock) before successful payment set the option to Yes. Setting the option to No will create the order after successful payment. Forgotten or Pending order payment requests are being automatically cancelled after the expiration time.
+
+![screen-capture-create-order-cancel-order](README-IMAGES/screen-capture-create-order-cancel-order.png)
 

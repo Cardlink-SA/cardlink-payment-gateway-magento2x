@@ -37,6 +37,8 @@ class Data extends AbstractHelper
     const XML_PATH_CONFIG_CHECKOUT_IN_IFRAME = 'payment/cardlink_checkout/checkout_in_iframe';
     const XML_PATH_CONFIG_CSS_URL = 'payment/cardlink_checkout/css_url';
     const XML_PATH_CONFIG_LOG_DEBUG_INFO = 'payment/cardlink_checkout/log_debug_info';
+    const XML_PATH_CONFIG_HOLD_STOCK_ORDER = 'payment/cardlink_checkout/hold_stock_order';
+    const XML_PATH_CONFIG_CANCELED_ORDER_EXPIRATION = 'payment/cardlink_checkout/canceled_order_expiration';
 
     const XML_PATH_CONFIG_IRIS_BUSINESS_PARTNER = 'payment/cardlink_checkout_iris/business_partner';
     const XML_PATH_CONFIG_IRIS_TRANSACTION_ENVIRONMENT = 'payment/cardlink_checkout_iris/transaction_environment';
@@ -46,6 +48,8 @@ class Data extends AbstractHelper
     const XML_PATH_CONFIG_IRIS_ENABLED = 'payment/cardlink_checkout_iris/active';
     const XML_PATH_CONFIG_IRIS_CSS_URL = 'payment/cardlink_checkout_iris/css_url';
     const XML_PATH_CONFIG_IRIS_DISPLAY_PAYMENT_METHOD_LOGO = 'payment/cardlink_checkout_iris/display_payment_method_logo';
+    const XML_PATH_CONFIG_IRIS_HOLD_STOCK_ORDER = 'payment/cardlink_checkout_iris/hold_stock_order';
+    const XML_PATH_CONFIG_IRIS_CANCELED_ORDER_EXPIRATION = 'payment/cardlink_checkout_iris/canceled_order_expiration';
 
     /**
      * @var LoggerInterface
@@ -479,6 +483,89 @@ class Data extends AbstractHelper
     public function getIrisCssUrl()
     {
         return self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_CSS_URL);
+    }
+
+
+    /**
+     * Identifies that the payment module should create order and hold stock or quote.
+     *
+     * @return string
+     */
+    public function getHoldStockOrder()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_HOLD_STOCK_ORDER);
+    }
+
+    /**
+     * Identifies that the payment module should create order and hold stock or quote for IRIS.
+     *
+     * @return string
+     */
+    public function getIrisHoldStockOrder()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_HOLD_STOCK_ORDER);
+    }
+
+    /**
+     * Identifies that the payment module should create order is enabled.
+     *
+     * @return bool
+     */
+    public function isCreateOrderEnabled()
+    {
+        return (bool) self::getHoldStockOrder();
+    }
+
+    /**
+     * Identifies that the payment module should create order is enabled for IRIS.
+     *
+     * @return bool
+     */
+    public function isIrisCreateOrderEnabled()
+    {
+        return (bool) self::getIrisHoldStockOrder();
+    }
+
+    /**
+     * Returns the configured canceled order expiration time.
+     *
+     * @return string
+     */
+    public function getCanceledOrderExpiration()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_CANCELED_ORDER_EXPIRATION);
+    }
+
+    /**
+     * Returns the configured canceled order expiration time for IRIS.
+     *
+     * @return string
+     */
+    public function getIrisCanceledOrderExpiration()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_CANCELED_ORDER_EXPIRATION);
+    }
+
+    /**
+     * Identifies that the payment module should cancel order after expiration time.
+     *
+     * @return bool
+     */
+    public function isCanceledOrderExpirationEnabled()
+    {
+        $config = self::getCanceledOrderExpiration();
+        return !!$config && intval($config)>=10 && intval($config)<=60;
+    }
+
+    /**
+     * Identifies that the payment module should cancel order after expiration time for IRIS.
+     *
+     * @return bool
+     */
+    public function isIrisCanceledOrderExpirationEnabled()
+    {
+        $config = self::getIrisCanceledOrderExpiration();
+        return !!$config && intval($config)>=10 && intval($config)<=60;
     }
 
 }

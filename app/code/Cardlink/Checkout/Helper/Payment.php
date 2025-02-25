@@ -5,12 +5,11 @@ namespace Cardlink\Checkout\Helper;
 use Cardlink\Checkout\Logger\Logger;
 use Cardlink\Checkout\Model\ApiFields;
 use Cardlink\Checkout\Model\PaymentStatus;
-use Cardlink\Checkout\Helper\Data;
-use Cardlink\Checkout\Helper\Tokenization;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\UrlInterface;
+use Magento\Quote\Model\Quote;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Api\Data\OrderInterfaceFactory;
@@ -20,10 +19,12 @@ use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Model\Order\Payment\Transaction;
 use Magento\Framework\Message\ManagerInterface;
 use Magento\Sales\Model\Order\Payment\Transaction\BuilderInterface;
+use Magento\Quote\Model\QuoteFactory;
+use Magento\Quote\Model\ResourceModel\Quote as QuoteResource;
 
 /**
  * Helper class containing methods to handle payment related functionalities.
- * 
+ *
  * @author Cardlink S.A.
  */
 class Payment extends AbstractHelper
@@ -59,7 +60,7 @@ class Payment extends AbstractHelper
     protected $orderRepository;
 
     /**
-     * @var OrderManagementInterface 
+     * @var OrderManagementInterface
      */
     protected $orderManagement;
 
@@ -99,8 +100,18 @@ class Payment extends AbstractHelper
     protected $transactionBuilder;
 
     /**
+     * @var QuoteFactory
+     */
+    protected $quoteFactory;
+
+    /**
+     * @var QuoteResource
+     */
+    protected $quoteResource;
+
+    /**
      * Constructor.
-     * 
+     *
      * @param Logger $logger
      * @param ScopeConfigInterface $scopeConfig
      * @param OrderInterface $order
@@ -115,6 +126,8 @@ class Payment extends AbstractHelper
      * @param Tokenization $tokenizationHelper
      * @param ManagerInterface $messageManager
      * @param BuilderInterface $transactionBuilder
+     * @param QuoteFactory $quoteFactory
+     * @param QuoteResource $quoteResource
      */
     public function __construct(
         Logger $logger,
@@ -130,7 +143,9 @@ class Payment extends AbstractHelper
         Data $dataHelper,
         Tokenization $tokenizationHelper,
         ManagerInterface $messageManager,
-        BuilderInterface $transactionBuilder
+        BuilderInterface $transactionBuilder,
+        QuoteFactory $quoteFactory,
+        QuoteResource $quoteResource
     ) {
         $this->logger = $logger;
         $this->scopeConfig = $scopeConfig;
@@ -146,11 +161,13 @@ class Payment extends AbstractHelper
         $this->tokenizationHelper = $tokenizationHelper;
         $this->messageManager = $messageManager;
         $this->transactionBuilder = $transactionBuilder;
+        $this->quoteFactory = $quoteFactory;
+        $this->quoteResource = $quoteResource;
     }
 
     /**
      * Gets the URL of the Cardlink payment gateway according to the configured business partner and transaction environment.
-     * 
+     *
      * @return string
      */
     function getPaymentGatewayUrl()
@@ -205,7 +222,7 @@ class Payment extends AbstractHelper
 
     /**
      * Returns the maximum number of installments according to the order amount.
-     * 
+     *
      * @param float|string $orderAmount The total amount of the order to be used for calculating the maximum number of installments.
      * @return int The maximum number of installments.
      */
@@ -234,7 +251,7 @@ class Payment extends AbstractHelper
 
     /**
      * Returns the URL that the customer will be redirected after a successful payment transaction.
-     * 
+     *
      * @return string The URL of the checkout payment success page.
      */
     private function getTransactionSuccessUrl()
@@ -244,7 +261,7 @@ class Payment extends AbstractHelper
 
     /**
      * Returns the URL that the customer will be redirected after a failed or canceled payment transaction.
-     * 
+     *
      * @return string The URL of the store's checkout payment failure/cancelation page.
      */
     private function getTransactionCancelUrl()
@@ -254,7 +271,7 @@ class Payment extends AbstractHelper
 
     /**
      * Returns the required payment gateway's API value for the transaction type (trType) property.
-     * 
+     *
      * @return string '1' for Sale/Capture, '2' for Authorize.
      */
     private function getTransactionTypeValue()
@@ -270,11 +287,11 @@ class Payment extends AbstractHelper
 
     /**
      * Loads the order information for
-     * 
+     *
      * @param Quote $quote The entity of the quote.
      * @return array An associative array containing the data that will be sent to the payment gateway's API endpoint to perform the requested transaction.
      */
-    public function getFormDataForOrder($quote, $checkoutSession)
+    public function getFormDataForQuote(Quote $quote, $checkoutSession)
     {
         $quoteId = $quote->getEntityId();
 
@@ -409,6 +426,140 @@ class Payment extends AbstractHelper
         return $signedFormData;
     }
 
+    public function getFormDataForOrder($order)
+    {
+        $orderId = $order->getIncrementId();
+
+        $billingAddress = $order->getBillingAddress();
+        $shippingAddress = $order->getShippingAddress();
+        $payment = $order->getPayment();
+
+        if ($billingAddress == false || $shippingAddress == false) {
+            if ($this->dataHelper->logDebugInfoEnabled()) {
+                $this->_logger->error("Invalid billing/shipping address for order {$orderId}.");
+            }
+            return false;
+        }
+
+        // Version number - must be '2'
+        $formData[ApiFields::Version] = '2';
+        // Device category - always '0'
+        $formData[ApiFields::DeviceCategory] = '0';
+        //// Maximum number of payment retries - set to 10
+        //$formData[ApiFields::MaxPayRetries] = '10';
+
+        // The type of transaction to perform (Sale/Authorize).
+        $formData[ApiFields::TransactionType] = $this->getTransactionTypeValue();
+
+        // Transaction success/failure return URLs
+        $formData[ApiFields::ConfirmUrl] = $this->getTransactionSuccessUrl();
+        $formData[ApiFields::CancelUrl] = $this->getTransactionCancelUrl();
+
+        // Order information
+        $formData[ApiFields::OrderId] = $orderId . 'x' . self::incrementalHash(ApiFields::OrderId_SuffixLength - 1);
+        $formData[ApiFields::OrderAmount] = floatval($order->getGrandTotal()); // Get order total amount
+        $formData[ApiFields::Currency] = $order->getOrderCurrencyCode(); // Get order currency code
+
+        $diasCode = $this->dataHelper->getDiasCode();
+        $enableIrisPayments = $this->dataHelper->isIrisEnabled() && $diasCode != '';
+
+        $method = $payment->getMethodInstance();
+        $payment_method_code = $method->getCode();
+
+        if ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsIris::CODE && $enableIrisPayments) {
+
+            // The Merchant ID
+            $formData[ApiFields::MerchantId] = $this->dataHelper->getIrisMerchantId();
+            $sharedSecret = $this->dataHelper->getIrisSharedSecret();
+
+            $formData[ApiFields::PaymentMethod] = 'IRIS';
+            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $orderId, $formData[ApiFields::OrderAmount]);
+            $formData[ApiFields::TransactionType] = '1';
+
+            // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
+            $cssUrl = trim((string) $this->dataHelper->getIrisCssUrl());
+
+        } else {
+
+            // The Merchant ID
+            $formData[ApiFields::MerchantId] = $this->dataHelper->getMerchantId();
+            $sharedSecret = $this->dataHelper->getSharedSecret();
+
+            $formData[ApiFields::OrderDescription] = 'ORDER ' . $orderId;
+
+            // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
+            $cssUrl = trim((string) $this->dataHelper->getCssUrl());
+
+            // Installments information.
+            if ($this->dataHelper->acceptsInstallments()) {
+                // Enforce installments limit
+                $maxInstallments = $this->getMaxInstallments($formData[ApiFields::OrderAmount]);
+
+                $installments = max(0, min($maxInstallments, $order->getPayment()->getCardlinkInstallments() + 0));
+
+                if ($installments > 1) {
+                    $formData[ApiFields::ExtInstallmentoffset] = 0;
+                    $formData[ApiFields::ExtInstallmentperiod] = $installments;
+                }
+            }
+
+            // Tokenization
+            if ($this->dataHelper->allowsTokenization()) {
+                if ($payment->getCardlinkStoredToken() > 0) {
+                    $paymentToken = $this->tokenizationHelper->getCustomerPaymentToken(
+                        $order->getCustomerId(),
+                        $payment->getCardlinkStoredToken()
+                    );
+
+                    if ($paymentToken != null && $paymentToken->getIsActive()) {
+                        $formData[ApiFields::ExtTokenOptions] = 100;
+                        $formData[ApiFields::ExtToken] = $paymentToken->getGatewayToken();
+                    }
+                } else if ($payment->getCardlinkTokenizeCard()) {
+                    $formData[ApiFields::ExtTokenOptions] = 100;
+                }
+            }
+
+        }
+
+        // Payer/customer information
+        $formData[ApiFields::PayerEmail] = $billingAddress->getEmail();
+        $formData[ApiFields::PayerPhone] = $billingAddress->getTelephone();
+
+        // Billing information
+        $formData[ApiFields::BillCountry] = $billingAddress->getCountryId();
+        //$formData[ApiFields::BillState] = $billingAddress->getRegionCode();
+        $formData[ApiFields::BillZip] = $billingAddress->getPostcode();
+        $formData[ApiFields::BillCity] = $billingAddress->getCity();
+        $formData[ApiFields::BillAddress] = $billingAddress->getStreet(1)[0];
+
+        // Shipping information
+        $formData[ApiFields::ShipCountry] = $shippingAddress->getCountryId();
+        //$formData[ApiFields::ShipState] = $shippingAddress->getRegionCode();
+        $formData[ApiFields::ShipZip] = $shippingAddress->getPostcode();
+        $formData[ApiFields::ShipCity] = $shippingAddress->getCity();
+        $formData[ApiFields::ShipAddress] = $shippingAddress->getStreet(1)[0];
+
+        if ($cssUrl != '') {
+            $formData[ApiFields::CssUrl] = $cssUrl;
+        }
+
+        // Instruct the payment gateway to use the store language for its UI.
+        if ($this->dataHelper->getForceStoreLanguage()) {
+            $formData[ApiFields::Language] = explode('_', (string) $order->getStore()->getLocaleCode())[0];
+        }
+
+        // Calculate the digest of the transaction request data and append it.
+        $signedFormData = self::signRequestFormData($formData, $sharedSecret);
+
+        if ($this->dataHelper->logDebugInfoEnabled()) {
+            $this->logger->debug("Valid payment request created for order {$orderId}.");
+            $this->logger->debug(json_encode($signedFormData, JSON_PRETTY_PRINT));
+        }
+
+        return $signedFormData;
+    }
+
     public function incrementalHash($len = 3)
     {
         $charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -426,10 +577,10 @@ class Payment extends AbstractHelper
 
     /**
      * Sign a bank request with the merchant's shared key and insert the digest in the data.
-     * 
+     *
      * @param array $formData The payment request data.
      * @param string $sharedSecret The shared secret code of the merchant.
-     * 
+     *
      * @return array The original request data put in proper order including the calculated data digest.
      */
     public function signRequestFormData($formData, $sharedSecret)
@@ -492,10 +643,10 @@ class Payment extends AbstractHelper
 
     /**
      * Validate the response data of the payment gateway by recalculating and comparing the data digests in order to identify legitimate incoming request.
-     * 
+     *
      * @param array $formData The payment gateway response data.
      * @param string $sharedSecret The shared secret code of the merchant.
-     * 
+     *
      * @return bool Identifies that the incoming data were sent by the payment gateway.
      */
     public function validateResponseData($formData, $sharedSecret)
@@ -517,12 +668,12 @@ class Payment extends AbstractHelper
     }
 
     /**
-     * Validate the response data of the payment gateway for Alpha Bonus transactions 
+     * Validate the response data of the payment gateway for Alpha Bonus transactions
      * by recalculating and comparing the data digests in order to identify legitimate incoming request.
-     * 
+     *
      * @param array $formData The payment gateway response data.
      * @param string $sharedSecret The shared secret code of the merchant.
-     * 
+     *
      * @return bool Identifies that the incoming data were sent by the payment gateway.
      */
     public function validateXlsBonusResponseData($formData, $sharedSecret)
@@ -545,7 +696,7 @@ class Payment extends AbstractHelper
 
     /**
      * Generate the message digest from a concatenated data string.
-     * 
+     *
      * @param string $concatenatedData The data to calculate the digest for.
      */
     public function generateDigest($concatenatedData)
@@ -555,7 +706,7 @@ class Payment extends AbstractHelper
 
     /**
      * Mark an order as paid, store additional payment information and handle customer's card tokenization request.
-     * 
+     *
      * @param object The order object.
      * @param array The data from the payment gateway's response.
      */
@@ -654,8 +805,8 @@ class Payment extends AbstractHelper
             $this->addTransactionToOrder(
                 $order,
                 $responseData[ApiFields::Status] == PaymentStatus::CAPTURED
-                ? Transaction::TYPE_CAPTURE
-                : Transaction::TYPE_AUTH,
+                    ? Transaction::TYPE_CAPTURE
+                    : Transaction::TYPE_AUTH,
                 [
                     ApiFields::OrderId => $responseData[ApiFields::OrderId],
                     ApiFields::PaymentMethod => strtoupper($responseData[ApiFields::PaymentMethod]),
@@ -711,7 +862,7 @@ class Payment extends AbstractHelper
 
     /**
      * Mark an order as canceled, store additional payment information and restore the user's cart.
-     * 
+     *
      * @param object The order object.
      * @param array The data from the payment gateway's response.
      */
@@ -800,7 +951,7 @@ class Payment extends AbstractHelper
 
     /**
      * Retrieve an order using its increment ID.
-     * 
+     *
      * @param string $incrementId The increment ID of the order.
      * @return \Magento\Sales\Api\Data\OrderInterface|null The order object if found. Otherwise, null.
      */
@@ -809,6 +960,20 @@ class Payment extends AbstractHelper
         $order = $this->orderFactory->create();
         $this->orderResource->load($order, $incrementId, OrderInterface::INCREMENT_ID);
         return $order;
+    }
+
+    /**
+     * Get a quote by its reserved order ID.
+     *
+     * @param string $reservedOrderId
+     * @return \Magento\Quote\Model\Quote|null
+     */
+    public function getQuoteByReservedOrderId($reservedOrderId)
+    {
+        $quote = $this->quoteFactory->create();
+        $this->quoteResource->load($quote, $reservedOrderId, 'reserved_order_id');
+
+        return $quote->getId() ? $quote : null;
     }
 
     /**
@@ -836,7 +1001,7 @@ class Payment extends AbstractHelper
 
     /**
      * Add transaction entry to the order.
-     * 
+     *
      * @param Order $order
      * @param array $paymentData
      */
