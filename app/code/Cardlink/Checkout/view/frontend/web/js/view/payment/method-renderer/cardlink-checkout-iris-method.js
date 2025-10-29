@@ -8,7 +8,8 @@ define(
         'Magento_Checkout/js/model/payment/additional-validators',
         'Magento_Checkout/js/model/full-screen-loader',
         'mage/url',
-        'Magento_Checkout/js/action/set-payment-information'
+        'Magento_Checkout/js/action/set-payment-information',
+        'Magento_Checkout/js/action/place-order',
     ],
     function (
         $,
@@ -76,9 +77,15 @@ define(
 
                 const self = this;
 
-                setPaymentInformationAction(this.messageContainer, {
-                    method: this.getData().method,
-                    additional_data: this.getData().additional_data
+                if (!self.validate() || !additionalValidators.validate()) {
+                    return false;
+                }
+
+                self.isPlaceOrderActionAllowed(false);
+
+                setPaymentInformationAction(self.messageContainer, {
+                    method: self.getData().method,
+                    additional_data: self.getData().additional_data
                 }).done(function () {
                     const redirectUrl = url.build('cardlink_checkout/payment/redirect');
                     fullScreenLoader.startLoader();

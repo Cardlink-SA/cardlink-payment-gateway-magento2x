@@ -22,7 +22,7 @@ use Magento\Payment\Model\CcConfigProvider;
  */
 class Settings implements ConfigProviderInterface
 {
-    const CODE = 'cardlink_checkout';
+    public const CODE = 'cardlink_checkout';
 
     /**
      * @var Logger

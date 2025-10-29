@@ -3,13 +3,18 @@
 - Contributors: cardlink
 - Tags: payments, payment-gateway
 - Requires at least: 2.2.6
-- Tested up to: 2.4.7
+- Tested up to: 2.4.78
 - Requires PHP: 7.x - 8.x
 - License: GPLv2 or later
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 ## Changelog
-
+- **1.2.3**
+  - Add Cardlink and Worldline as IRIS business partners.
+  - Various fixes for IRIS payments.
+- **1.2.2**
+  - Fix minor IRIS redirection issues.
+  - Enforce Terms and Conditions acceptance requirement on checkout.
 - **1.2.1**
   - Minor fixes in the cron task and related admin field.
   - Limit added to that field with a valid range of 10-60 minutes. Leave empty to disable feature.
@@ -52,12 +57,12 @@ In case that you face any technical issue during the installation process, you c
 Cardlink Payment Gateway allows you to accept payment through various schemes such as Visa, Mastercard, Maestro, American Express, Diners, Discover cards on your website, with or without variable installments.
 This module aims to offer new payment solutions to Cardlink merchants for their Magento 2.x online store without having web development knowledge. However, for the initial module installation some technical knowledge will be required.
 
-Merchants with e-shops (redirect cases only) will be able to integrate the Cardlink Payment Gateway to their checkout page using the CSS layout that they want. Also, they could choose between redirect or IFRAME option for the payment environment. Once the payment is made, the customer returns to the online store and the order is updated.
+Merchants with e-shops (redirect cases only) will be able to integrate the Cardlink Payment Gateway into their checkout page using the CSS layout that they want. Also, they could choose between redirect or IFRAME option for the payment environment. Once the payment is made, the customer returns to the online store and the order is updated.
 Once you have completed the requested tests and any changes to your website, you can activate your account and start accepting payments. 
 
 ## Features
 
-1. A dropdown option for instance between Worldline, Nexi και Cardlink.
+1. A dropdown option for instance between Worldline, Nexi and Cardlink.
 2. Option to enable test environment (sandbox). All transactions will be re-directed to the endpoint that represents the production environment by default. The endpoint will be different depending on which acquirer has been chosen from instance dropdown option.
 3. Ability to define the maximum number of installments regardless of the total order amount.
 4. Ability to define the ranges of the total order amounts and the maximum number of installments for each range.
@@ -68,7 +73,7 @@ Once you have completed the requested tests and any changes to your website, you
 9. Translation ready for Greek & English languages.
 10. Configurable automatic cancellation of pending orders.
 11. Only send the order confirmation email to the customer after a successful payment.
-12. Support for IRIS payments for Nexi acquirer only.
+12. Support for IRIS payments for Worldline, Nexi and Cardlink acquirers.
 13.	The IFRAME feature is not supported for IRIS payments.
 14. Configurable Order creation (before or after successful payment)
 

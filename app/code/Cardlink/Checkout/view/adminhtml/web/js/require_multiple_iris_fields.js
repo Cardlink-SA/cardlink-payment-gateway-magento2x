@@ -10,8 +10,7 @@ define('Cardlink_Checkout/js/require_multiple_iris_fields', [
         // Array of field IDs to validate conditionally
         var fieldsToValidate = [
             '#payment_other_cardlink_checkout_iris_merchant_id',
-            '#payment_other_cardlink_checkout_iris_shared_secret',
-            '#payment_other_cardlink_checkout_iris_dias_code'
+            '#payment_other_cardlink_checkout_iris_shared_secret'
         ];
 
         // Function to toggle required validation based on active status

@@ -50,7 +50,7 @@
 
             <cardlink_checkout_iris>
                 <model>CardlinkCheckoutIrisFacade</model>
-                <active>0</active>
+                <active>1</active>
                 <debug>0</debug>
                 <currency>EUR</currency>
                 <allowspecific>0</allowspecific>

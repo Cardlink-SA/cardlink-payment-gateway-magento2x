@@ -74,7 +74,6 @@ class AutoCancelPendingOrders
                 }
                 $this->processCancellations($config['expiration_time'], $config['payment_method']);
             }
-
         } catch (\Exception $e) {
             $this->debug('Error in order cancellation cron: ' . $e->getMessage());
         }
@@ -91,13 +90,13 @@ class AutoCancelPendingOrders
     {
         // expirationTime is in minutes
         $cancelBeforeTime = $this->calculateExpirationTime($expirationTime);
-        if(!$cancelBeforeTime) return;
+        if (!$cancelBeforeTime) return;
         // find the records
         $orderCollection = $this->orderCollectionFactory->create()
             ->addFieldToFilter('created_at', ['lteq' => $cancelBeforeTime])
             ->addFieldToFilter('status', ['in' => [$this->newOrderStatus]])
             ->addFieldToFilter('sop.method', ['in' => [$paymentMethod]]);
-        $orderCollection->getSelect()->join(["sop" => "sales_order_payment"],'main_table.entity_id = sop.parent_id', ['method']);
+        $orderCollection->getSelect()->join(["sop" => "sales_order_payment"], 'main_table.entity_id = sop.parent_id', ['method']);
         // Process in batches to handle large order sets
         $pageSize = 100;
         $orderCollection->setPageSize($pageSize);
@@ -160,8 +159,7 @@ class AutoCancelPendingOrders
         if (!$this->dataHelper->logDebugInfoEnabled()) return;
         foreach ($data as $index => $item) $this->logger->debug(
             (
-            is_array($item) || is_object($item) ? json_encode($item, JSON_PRETTY_PRINT) :
-                (is_scalar($item) || $item === null ? (string)$item : var_export($item, true))
+                is_array($item) || is_object($item) ? json_encode($item, JSON_PRETTY_PRINT) : (is_scalar($item) || $item === null ? (string)$item : var_export($item, true))
             )
         );
     }

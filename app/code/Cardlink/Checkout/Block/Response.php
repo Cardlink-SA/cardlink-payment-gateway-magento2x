@@ -13,6 +13,18 @@ use Magento\Backend\Block\Widget\Context;
  */
 class Response extends \Magento\Framework\View\Element\Template
 {
+    // Mark as private so it’s not stored in FPC output
+    protected function _isScopePrivate()
+    {
+        return true;
+    }
+
+    // If you also override cache lifetime, returning null is fine here.
+    public function getCacheLifetime()
+    {
+        return null; // not cached as a block fragment
+    }
+
     /**
      * @var FormKey
      */

@@ -444,7 +444,7 @@ class Data extends AbstractHelper
      */
     public function getIrisLogoUrl()
     {
-        // Identify that the Cardlink logo will be appended to the payment method's label.        
+        // Identify that the IRIS logo will be appended to the payment method's label.        
         $ret = $this->assetRepo->getUrlWithParams(
             'Cardlink_Checkout::images/iris.jpg',
             [
@@ -554,7 +554,7 @@ class Data extends AbstractHelper
     public function isCanceledOrderExpirationEnabled()
     {
         $config = self::getCanceledOrderExpiration();
-        return !!$config && intval($config)>=10 && intval($config)<=60;
+        return !!$config && intval($config) >= 10 && intval($config) <= 60;
     }
 
     /**
@@ -565,7 +565,6 @@ class Data extends AbstractHelper
     public function isIrisCanceledOrderExpirationEnabled()
     {
         $config = self::getIrisCanceledOrderExpiration();
-        return !!$config && intval($config)>=10 && intval($config)<=60;
+        return !!$config && intval($config) >= 10 && intval($config) <= 60;
     }
-
 }

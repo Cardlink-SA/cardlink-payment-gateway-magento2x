@@ -7,6 +7,4 @@ namespace Cardlink\Checkout\Logger;
  * 
  * @author Cardlink S.A.
  */
-class Logger extends \Monolog\Logger
-{
-}
+class Logger extends \Monolog\Logger {}

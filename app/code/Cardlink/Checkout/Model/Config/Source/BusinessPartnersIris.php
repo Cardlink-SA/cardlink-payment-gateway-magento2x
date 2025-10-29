@@ -17,6 +17,8 @@ class BusinessPartnersIris extends SelectBoxOptionsAbstract implements \Magento\
     const BUSINESS_PARTNER_WORLDLINE = 'worldline';
 
     protected $options = array(
-        self::BUSINESS_PARTNER_NEXI => 'Nexi',
+        self::BUSINESS_PARTNER_CARDLINK => 'Cardlink',
+        self::BUSINESS_PARTNER_NEXI  => 'Nexi',
+        self::BUSINESS_PARTNER_WORLDLINE => 'Worldline'
     );
 }

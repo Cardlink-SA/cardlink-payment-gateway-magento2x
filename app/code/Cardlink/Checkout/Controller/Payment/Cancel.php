@@ -19,7 +19,7 @@ use Magento\Framework\UrlInterface;
  *
  * @author Cardlink S.A.
  */
-class Cancel extends Action
+class Cancel extends Action implements \Magento\Framework\App\PageCache\NotCacheableInterface
 {
     /**
      *  @var Session
@@ -123,9 +123,9 @@ class Cancel extends Action
         );
         if (array_key_exists(ApiFields::XlsBonusDigest, $responseData)) {
             $isValid = $isValid && $this->paymentHelper->validateXlsBonusResponseData(
-                    $responseData,
-                    $this->dataHelper->getSharedSecret()
-                );
+                $responseData,
+                $this->dataHelper->getSharedSecret()
+            );
         }
         return $isValid;
     }
@@ -188,10 +188,9 @@ class Cancel extends Action
      */
     private function isIrisCreateOrderEnabled(): bool
     {
-        $diasCode = $this->dataHelper->getDiasCode();
-        $enableIrisPayments = $this->dataHelper->isIrisEnabled() && $diasCode != '';
+        $enableIrisPayments = $this->dataHelper->isIrisEnabled();
         $IrisCreateOrderEnabled = $this->dataHelper->isIrisCreateOrderEnabled();
-        return ($diasCode && $enableIrisPayments && $IrisCreateOrderEnabled);
+        return ($enableIrisPayments && $IrisCreateOrderEnabled);
     }
 
     /**

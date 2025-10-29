@@ -9,6 +9,7 @@ use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\UrlInterface;
+use Magento\Payment\Helper\Data as PaymentHelper;
 use Magento\Quote\Model\Quote;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
@@ -85,6 +86,11 @@ class Payment extends AbstractHelper
     protected $dataHelper;
 
     /**
+     * @var PaymentHelper
+     */
+    protected $paymentHelper;
+
+    /**
      * @var Tokenization
      */
     protected $tokenizationHelper;
@@ -141,6 +147,7 @@ class Payment extends AbstractHelper
         CartRepositoryInterface $quoteRepository,
         UrlInterface $urlBuilder,
         Data $dataHelper,
+        PaymentHelper $paymentHelper,
         Tokenization $tokenizationHelper,
         ManagerInterface $messageManager,
         BuilderInterface $transactionBuilder,
@@ -158,6 +165,7 @@ class Payment extends AbstractHelper
         $this->checkoutSession = $checkoutSession;
         $this->urlBuilder = $urlBuilder;
         $this->dataHelper = $dataHelper;
+        $this->paymentHelper = $paymentHelper;
         $this->tokenizationHelper = $tokenizationHelper;
         $this->messageManager = $messageManager;
         $this->transactionBuilder = $transactionBuilder;
@@ -328,7 +336,7 @@ class Payment extends AbstractHelper
         $formData[ApiFields::Currency] = $quote->getQuoteCurrencyCode(); // Get order currency code
 
         $diasCode = $this->dataHelper->getDiasCode();
-        $enableIrisPayments = $this->dataHelper->isIrisEnabled() && $diasCode != '';
+        $enableIrisPayments = $this->dataHelper->isIrisEnabled();
 
         $payment_method_code = $checkoutSession->getQuote()->getPayment()->getMethod();
 
@@ -339,12 +347,14 @@ class Payment extends AbstractHelper
             $sharedSecret = $this->dataHelper->getIrisSharedSecret();
 
             $formData[ApiFields::PaymentMethod] = 'IRIS';
-            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $quoteId, $formData[ApiFields::OrderAmount]);
             $formData[ApiFields::TransactionType] = '1';
+
+            if ($this->dataHelper->getIrisBusinessPartner() == \Cardlink\Checkout\Model\Config\Source\BusinessPartnersIris::BUSINESS_PARTNER_NEXI) {
+                $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $quoteId, $formData[ApiFields::OrderAmount]);
+            }
 
             // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
             $cssUrl = trim((string) $this->dataHelper->getIrisCssUrl());
-
         } else {
 
             // The Merchant ID
@@ -385,7 +395,6 @@ class Payment extends AbstractHelper
                     $formData[ApiFields::ExtTokenOptions] = 100;
                 }
             }
-
         }
 
         // Payer/customer information
@@ -461,7 +470,7 @@ class Payment extends AbstractHelper
         $formData[ApiFields::Currency] = $order->getOrderCurrencyCode(); // Get order currency code
 
         $diasCode = $this->dataHelper->getDiasCode();
-        $enableIrisPayments = $this->dataHelper->isIrisEnabled() && $diasCode != '';
+        $enableIrisPayments = $this->dataHelper->isIrisEnabled();
 
         $method = $payment->getMethodInstance();
         $payment_method_code = $method->getCode();
@@ -473,12 +482,14 @@ class Payment extends AbstractHelper
             $sharedSecret = $this->dataHelper->getIrisSharedSecret();
 
             $formData[ApiFields::PaymentMethod] = 'IRIS';
-            $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $orderId, $formData[ApiFields::OrderAmount]);
             $formData[ApiFields::TransactionType] = '1';
+
+            if ($this->dataHelper->getIrisBusinessPartner() == \Cardlink\Checkout\Model\Config\Source\BusinessPartnersIris::BUSINESS_PARTNER_NEXI) {
+                $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $orderId, $formData[ApiFields::OrderAmount]);
+            }
 
             // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
             $cssUrl = trim((string) $this->dataHelper->getIrisCssUrl());
-
         } else {
 
             // The Merchant ID
@@ -519,7 +530,6 @@ class Payment extends AbstractHelper
                     $formData[ApiFields::ExtTokenOptions] = 100;
                 }
             }
-
         }
 
         // Payer/customer information
@@ -732,11 +742,11 @@ class Payment extends AbstractHelper
             }
 
             $payment = $order->getPayment();
+
             $payment->setCardlinkPayStatus($responseData[ApiFields::Status]);
             $payment->setCardlinkTxId($responseData[ApiFields::TransactionId]);
             $payment->setCardlinkPayMethod($responseData[ApiFields::PaymentMethod]);
             $payment->setCardlinkPayRef($responseData[ApiFields::PaymentReferenceId]);
-            $payment->save();
 
             if ($this->dataHelper->logDebugInfoEnabled()) {
                 $this->logger->debug("Setting payment gateway information to payment object {$payment->getId()} (order {$order->getIncrementId()}).");
@@ -1010,7 +1020,6 @@ class Payment extends AbstractHelper
         try {
             // Prepare payment object
             $payment = $order->getPayment();
-            $payment->setMethod(\Cardlink\Checkout\Model\Config\Settings::CODE);
             $payment->setLastTransId($paymentData[ApiFields::TransactionId]);
             $payment->setTransactionId($paymentData[ApiFields::TransactionId]);
             $payment->setAdditionalInformation([Transaction::RAW_DETAILS => (array) $paymentData]);

@@ -22,7 +22,7 @@ use Magento\Payment\Model\CcConfigProvider;
  */
 class SettingsIris implements ConfigProviderInterface
 {
-    const CODE = 'cardlink_checkout_iris';
+    public const CODE = 'cardlink_checkout_iris';
 
     /**
      * @var Logger

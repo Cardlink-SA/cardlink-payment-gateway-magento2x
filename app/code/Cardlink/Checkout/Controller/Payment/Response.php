@@ -1,6 +1,7 @@
 <?php
 
 namespace Cardlink\Checkout\Controller\Payment;
+
 use Cardlink\Checkout\Logger\Logger;
 use Cardlink\Checkout\Model\ApiFields;
 use Cardlink\Checkout\Model\PaymentStatus;
@@ -26,6 +27,8 @@ use Magento\Quote\Model\QuoteFactory;
 use Magento\Quote\Model\QuoteManagement;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Api\OrderRepositoryInterface;
+
 
 $productMetadata = \Magento\Framework\App\ObjectManager::getInstance()->get(\Magento\Framework\App\ProductMetadataInterface::class);
 $magentoVersion = $productMetadata->getVersion();
@@ -39,7 +42,7 @@ if (version_compare($magentoVersion, '2.3.0', '<')) {
  *
  * @author Cardlink S.A.
  */
-class Response extends Action implements CsrfAwareActionInterface, HttpPostActionInterface
+class Response extends Action implements CsrfAwareActionInterface, HttpPostActionInterface, \Magento\Framework\App\PageCache\NotCacheableInterface
 {
     /** @var FormKey */
     protected $formKey;
@@ -69,6 +72,21 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
     protected $orderFactory;
 
     /**
+     * @var QuoteFactory
+     */
+    protected $quoteFactory;
+
+    /**
+     * @var QuoteManagement
+     */
+    protected $quoteManagement;
+
+    /**
+     * @var OrderRepositoryInterface
+     */
+    protected $orderRepository;
+
+    /**
      * Response constructor.
      *
      * @param Context $context
@@ -92,6 +110,9 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
         Data $dataHelper,
         Payment $paymentHelper,
         OrderFactory $orderFactory,
+        QuoteFactory $quoteFactory,
+        QuoteManagement $quoteManagement,
+        OrderRepositoryInterface $orderRepository,
         FormKey $formKey
     ) {
         $this->checkoutSession = $checkoutSession;
@@ -102,10 +123,14 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
         $this->dataHelper = $dataHelper;
         $this->paymentHelper = $paymentHelper;
         $this->orderFactory = $orderFactory;
+        $this->quoteFactory = $quoteFactory;
+        $this->quoteManagement = $quoteManagement;
+        $this->orderRepository = $orderRepository;
         $this->formKey = $formKey;
 
         parent::__construct($context);
     }
+
 
     /**
      * Main execution method for processing payment gateway responses.
@@ -116,14 +141,8 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
     public function execute(): ResultInterface
     {
         $responseData = $this->getRequest()->getParams();
-        $isValidResponse = $this->validatePaymentGatewayResponse($responseData);
         $orderId = 0;
         $message = null;
-
-        if (!$isValidResponse) {
-            // Redirect to the cart in case of an invalid response.
-            return $this->resultRedirectFactory->create()->setPath('checkout/cart', ['_secure' => true]);
-        }
 
         if ($this->dataHelper->logDebugInfoEnabled()) {
             $this->logger->debug('Received valid payment gateway response.');
@@ -135,7 +154,14 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
         switch ($status) {
             case PaymentStatus::AUTHORIZED:
             case PaymentStatus::CAPTURED:
-                [$orderId, $message] = $this->processSuccessfulPayment($responseData);
+                $isValidResponse = $this->validatePaymentGatewayResponse($responseData);
+                if (!$isValidResponse) {
+                    // Redirect to the cart in case of an invalid response.
+                    return $this->resultRedirectFactory->create()->setPath('checkout/cart', ['_secure' => true, 'error' => 'invalid-response']);
+                }
+                $result  = $this->processSuccessfulPayment($responseData);
+                $orderId = $result[0];
+                $message = $result[1];
                 $success = true;
                 break;
             case PaymentStatus::CANCELED:
@@ -166,19 +192,25 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
      */
     private function validatePaymentGatewayResponse(array $responseData): bool
     {
+        if ($responseData['payMethod'] == 'IRIS') {
+            $secret = $this->dataHelper->getIrisSharedSecret();
+        } else {
+            $secret = $this->dataHelper->getSharedSecret();
+        }
+
         $isValid = $this->paymentHelper->validateResponseData(
             $responseData,
-            $this->dataHelper->getSharedSecret()
+            $secret
         );
+
         if (array_key_exists(ApiFields::XlsBonusDigest, $responseData)) {
             $isValid = $isValid && $this->paymentHelper->validateXlsBonusResponseData(
-                    $responseData,
-                    $this->dataHelper->getSharedSecret()
-                );
+                $responseData,
+                $secret
+            );
         }
         return $isValid;
     }
-
 
     /**
      * Process a successful payment response.
@@ -210,7 +242,7 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
         } else {
             // If no order is found, treat it as a quote
             $quote = $this->paymentHelper->getQuoteById($orderId);
-            if ($quote && $quote->getId()) {
+            if ($quote && $quote->getIsActive() && $quote->getId()) {
                 $order = $this->createOrderFromQuote($quote->getId());
                 // Set session variables
                 $this->checkoutSession->setLastQuoteId($quote->getId())
@@ -221,9 +253,14 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
                 $this->paymentHelper->markSuccessfulPayment($order, $responseData);
             }
         }
+
+        if (isset($order) && isset($quote)) {
+            $quote->setIsActive(false);
+            $quote->save();
+        }
+
         return [$orderId, $message];
     }
-
 
     /**
      * Processes a failed payment response.
@@ -247,25 +284,37 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
      */
     private function createOrderFromQuote(string $quoteId): Order
     {
-        $objectManager = ObjectManager::getInstance();
-        $quoteFactory = $objectManager->get(QuoteFactory::class);
-        $quoteManagement = $objectManager->get(QuoteManagement::class);
-        $quote = $quoteFactory->create()->load($quoteId);
+        $quote = $this->quoteFactory->create()->load($quoteId);
         if (!$quote->getId()) {
-            throw new Exception('Quote not found');
+            $this->logger->error("Quote not found for quoteId={$quoteId}");
+            throw new \Exception('Quote not found');
         }
+
+        $this->logger->info("Loaded quote {$quote->getId()} (reserved order ID: {$quote->getReservedOrderId()})");
+
+        // Ensure we don't reuse a previously reserved order ID
+        if ($quote->getReservedOrderId()) {
+            $this->logger->warning("Quote {$quote->getId()} already had reserved order ID {$quote->getReservedOrderId()}, resetting.");
+        }
+
+        $quote->setReservedOrderId(null);
+        $quote->reserveOrderId();
+
+        $this->logger->info("Reserved new order ID {$quote->getReservedOrderId()} for quote {$quote->getId()}");
 
         // Convert quote to order
-        if($this->isMagentoVersionBelow('2.3.0')) {
-            $orderId = $quoteManagement->placeOrder($quote->getId());
-            $order = $this->paymentHelper->getOrderById($orderId);
+        if ($this->isMagentoVersionBelow('2.3.0')) {
+            $orderId = $this->quoteManagement->placeOrder($quote->getId());
+            $order = $this->orderRepository->get($orderId);
         } else {
-            $order = $quoteManagement->submit($quote);
+            $order = $this->quoteManagement->submit($quote);
         }
 
-        // Mark the quote as inactive
-        $quote->setIsActive(false);
-        $quote->save();
+        // Deactivate the quote so it can't be reused
+        $quote->setIsActive(false)->save();
+
+        $this->logger->info("Created order {$order->getIncrementId()} from quote {$quote->getId()}");
+
         return $order;
     }
 
@@ -339,10 +388,9 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
      */
     private function isIrisCreateOrderEnabled(): bool
     {
-        $diasCode = $this->dataHelper->getDiasCode();
-        $enableIrisPayments = $this->dataHelper->isIrisEnabled() && $diasCode != '';
+        $enableIrisPayments = $this->dataHelper->isIrisEnabled();
         $IrisCreateOrderEnabled = $this->dataHelper->isIrisCreateOrderEnabled();
-        return ($diasCode && $enableIrisPayments && $IrisCreateOrderEnabled);
+        return ($enableIrisPayments && $IrisCreateOrderEnabled);
     }
 
     /**

@@ -114,4 +114,33 @@
         </arguments>
     </type>
 
+    <type name="Magento\Payment\Model\Method\InstanceFactory">
+        <arguments>
+            <argument name="methods" xsi:type="array">
+                <item name="cardlink_checkout" xsi:type="string">CardlinkCheckoutFacade</item>
+                <item name="cardlink_checkout_iris" xsi:type="string">CardlinkCheckoutIrisFacade</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- ////////////////////////////////////////////////////////// -->
+
+    <!-- already present in your module -->
+    <type name="Magento\CatalogInventory\Helper\Stock">
+        <plugin name="cardlink_guard_instock_once" type="Cardlink\Checkout\Plugin\CatalogInventory\Helper\StockPlugin" sortOrder="1"/>
+    </type>
+
+    <type name="Magento\CatalogInventory\Model\ResourceModel\Stock\Status">
+        <plugin name="cardlink_guard_stock_status_once" type="Cardlink\Checkout\Plugin\CatalogInventory\ResourceModel\Stock\StatusPlugin" sortOrder="1"/>
+    </type>
+
+    <!-- NEW: guard MSI resource joins -->
+    <type name="Magento\InventoryCatalog\Model\ResourceModel\AddStockDataToCollection">
+        <plugin name="cardlink_guard_msi_add_stock_data" type="Cardlink\Checkout\Plugin\InventoryCatalog\ResourceModel\AddStockDataToCollectionPlugin" sortOrder="1"/>
+    </type>
+
+    <type name="Magento\InventoryCatalog\Model\ResourceModel\AddIsInStockFilterToCollection">
+        <plugin name="cardlink_guard_msi_add_instock_filter" type="Cardlink\Checkout\Plugin\InventoryCatalog\ResourceModel\AddIsInStockFilterToCollectionPlugin" sortOrder="1"/>
+    </type>
+
 </config>
