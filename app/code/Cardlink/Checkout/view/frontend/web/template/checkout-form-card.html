@@ -12,6 +12,10 @@
             id="cardlink_checkout_card--payment-method-logo" />
         <!-- /ko -->
 
+        <!-- ko if: getDescription() -->
+        <div class="payment-method-description" data-bind="html: getDescription()"></div>
+        <!-- /ko -->
+
         <!-- ko foreach: getRegion('messages') -->
         <!-- ko template: getTemplate() -->
         <!-- /ko -->

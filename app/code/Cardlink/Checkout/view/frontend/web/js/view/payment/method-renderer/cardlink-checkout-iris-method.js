@@ -40,6 +40,10 @@ define(
                 return 'cardlink_checkout_iris';
             },
 
+            getDescription() {
+                return window.checkoutConfig.payment.cardlink_checkout_iris.description;
+            },
+
             canDisplayLogoInTitle: function () {
                 return window.checkoutConfig.payment.cardlink_checkout_iris.displayLogoInTitle;
             },

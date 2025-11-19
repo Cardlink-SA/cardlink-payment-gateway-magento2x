@@ -114,6 +114,7 @@ class Settings implements ConfigProviderInterface
             'payment' => [
                 self::CODE => [
                     'enable' => $this->dataHelper->isEnabled(),
+                    'description' => $this->dataHelper->getDescription(),
                     'acceptsInstallments' => $this->dataHelper->acceptsInstallments(),
                     'installmentsConfiguration' => $this->dataHelper->getInstallmentsConfiguration(),
                     'allowsTokenization' => $this->dataHelper->allowsTokenization() && $customerId,

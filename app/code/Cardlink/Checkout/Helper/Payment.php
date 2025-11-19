@@ -335,7 +335,6 @@ class Payment extends AbstractHelper
         $formData[ApiFields::OrderAmount] = floatval($quote->getGrandTotal()); // Get order total amount
         $formData[ApiFields::Currency] = $quote->getQuoteCurrencyCode(); // Get order currency code
 
-        $diasCode = $this->dataHelper->getDiasCode();
         $enableIrisPayments = $this->dataHelper->isIrisEnabled();
 
         $payment_method_code = $checkoutSession->getQuote()->getPayment()->getMethod();
@@ -349,12 +348,19 @@ class Payment extends AbstractHelper
             $formData[ApiFields::PaymentMethod] = 'IRIS';
             $formData[ApiFields::TransactionType] = '1';
 
-            if ($this->dataHelper->getIrisBusinessPartner() == \Cardlink\Checkout\Model\Config\Source\BusinessPartnersIris::BUSINESS_PARTNER_NEXI) {
-                $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $quoteId, $formData[ApiFields::OrderAmount]);
-            }
-
             // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
             $cssUrl = trim((string) $this->dataHelper->getIrisCssUrl());
+
+            // Instruct the payment gateway to use the store language for its UI.
+            if ($this->dataHelper->getIrisForceStoreLanguage()) {
+                $locale = $this->scopeConfig->getValue(
+                    'general/locale/code',
+                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                    $quote->getStore()->getCode()
+                );
+                $lang = explode('_', $locale)[0];
+                $formData[ApiFields::Language] = $lang;
+            }
         } else {
 
             // The Merchant ID
@@ -395,6 +401,17 @@ class Payment extends AbstractHelper
                     $formData[ApiFields::ExtTokenOptions] = 100;
                 }
             }
+
+            // Instruct the payment gateway to use the store language for its UI.
+            if ($this->dataHelper->getForceStoreLanguage()) {
+                $locale = $this->scopeConfig->getValue(
+                    'general/locale/code',
+                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                    $quote->getStore()->getCode()
+                );
+                $lang = explode('_', $locale)[0];
+                $formData[ApiFields::Language] = $lang;
+            }
         }
 
         // Payer/customer information
@@ -417,11 +434,6 @@ class Payment extends AbstractHelper
 
         if ($cssUrl != '') {
             $formData[ApiFields::CssUrl] = $cssUrl;
-        }
-
-        // Instruct the payment gateway to use the store language for its UI.
-        if ($this->dataHelper->getForceStoreLanguage()) {
-            $formData[ApiFields::Language] = explode('_', (string) $quote->getStore()->getLocaleCode())[0];
         }
 
         // Calculate the digest of the transaction request data and append it.
@@ -469,7 +481,6 @@ class Payment extends AbstractHelper
         $formData[ApiFields::OrderAmount] = floatval($order->getGrandTotal()); // Get order total amount
         $formData[ApiFields::Currency] = $order->getOrderCurrencyCode(); // Get order currency code
 
-        $diasCode = $this->dataHelper->getDiasCode();
         $enableIrisPayments = $this->dataHelper->isIrisEnabled();
 
         $method = $payment->getMethodInstance();
@@ -484,12 +495,19 @@ class Payment extends AbstractHelper
             $formData[ApiFields::PaymentMethod] = 'IRIS';
             $formData[ApiFields::TransactionType] = '1';
 
-            if ($this->dataHelper->getIrisBusinessPartner() == \Cardlink\Checkout\Model\Config\Source\BusinessPartnersIris::BUSINESS_PARTNER_NEXI) {
-                $formData[ApiFields::OrderDescription] = self::generateIrisRFCode($diasCode, $orderId, $formData[ApiFields::OrderAmount]);
-            }
-
             // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
             $cssUrl = trim((string) $this->dataHelper->getIrisCssUrl());
+            
+            // Instruct the payment gateway to use the store language for its UI.
+            if ($this->dataHelper->getIrisForceStoreLanguage()) {
+                $locale = $this->scopeConfig->getValue(
+                    'general/locale/code',
+                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                    $order->getStore()->getCode()
+                );
+                $lang = explode('_', $locale)[0];
+                $formData[ApiFields::Language] = $lang;
+            }
         } else {
 
             // The Merchant ID
@@ -530,6 +548,17 @@ class Payment extends AbstractHelper
                     $formData[ApiFields::ExtTokenOptions] = 100;
                 }
             }
+            
+            // Instruct the payment gateway to use the store language for its UI.
+            if ($this->dataHelper->getForceStoreLanguage()) {
+                $locale = $this->scopeConfig->getValue(
+                    'general/locale/code',
+                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                    $order->getStore()->getCode()
+                );
+                $lang = explode('_', $locale)[0];
+                $formData[ApiFields::Language] = $lang;
+            }
         }
 
         // Payer/customer information
@@ -552,11 +581,6 @@ class Payment extends AbstractHelper
 
         if ($cssUrl != '') {
             $formData[ApiFields::CssUrl] = $cssUrl;
-        }
-
-        // Instruct the payment gateway to use the store language for its UI.
-        if ($this->dataHelper->getForceStoreLanguage()) {
-            $formData[ApiFields::Language] = explode('_', (string) $order->getStore()->getLocaleCode())[0];
         }
 
         // Calculate the digest of the transaction request data and append it.
@@ -609,46 +633,6 @@ class Payment extends AbstractHelper
         $ret[ApiFields::Digest] = self::generateDigest($concatenatedData);
 
         return $ret;
-    }
-
-    /**
-     * Generate the Request Fund (RF) code for IRIS payments.
-     * @param string $diasCustomerCode The DIAS customer code of the merchant.
-     * @param mixed $orderId The ID of the order.
-     * @param mixed $amount The amount due.
-     * @return string The generated RF code.
-     */
-    public static function generateIrisRFCode(string $diasCustomerCode, $orderId, $amount)
-    {
-        /* calculate payment check code */
-        $paymentSum = 0;
-
-        if ($amount > 0) {
-            $ordertotal = str_replace([','], '.', (string) $amount);
-            $ordertotal = number_format($ordertotal, 2, '', '');
-            $ordertotal = strrev($ordertotal);
-            $factor = [1, 7, 3];
-            $idx = 0;
-            for ($i = 0; $i < strlen($ordertotal); $i++) {
-                $idx = $idx <= 2 ? $idx : 0;
-                $paymentSum += $ordertotal[$i] * $factor[$idx];
-                $idx++;
-            }
-        }
-
-        $orderIdNum = (int) filter_var($orderId, FILTER_SANITIZE_NUMBER_INT);
-
-        $randomNumber = substr(str_pad($orderIdNum, 13, '0', STR_PAD_LEFT), -13);
-        $paymentCode = $paymentSum ? ($paymentSum % 8) : '8';
-        $systemCode = '12';
-        $tempCode = $diasCustomerCode . $paymentCode . $systemCode . $randomNumber . '271500';
-        $mod97 = bcmod($tempCode, '97');
-
-        $cd = 98 - (int) $mod97;
-        $cd = str_pad((string) $cd, 2, '0', STR_PAD_LEFT);
-        $rf_payment_code = 'RF' . $cd . $diasCustomerCode . $paymentCode . $systemCode . $randomNumber;
-
-        return $rf_payment_code;
     }
 
     /**

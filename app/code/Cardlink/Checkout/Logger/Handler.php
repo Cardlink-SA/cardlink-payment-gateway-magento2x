@@ -2,7 +2,7 @@
 
 namespace Cardlink\Checkout\Logger;
 
-use Monolog\Logger;
+use Monolog\Logger as Mono;
 
 /**
  * Handler class for the custom Logger facility.
@@ -15,7 +15,7 @@ class Handler extends \Magento\Framework\Logger\Handler\Base
      * Logging level
      * @var int
      */
-    protected $loggerType = Logger::DEBUG;
+    protected $loggerType = Mono::DEBUG;
 
     /**
      * Path of the custom log file.

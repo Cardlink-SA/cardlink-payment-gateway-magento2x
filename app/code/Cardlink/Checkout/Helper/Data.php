@@ -40,13 +40,16 @@ class Data extends AbstractHelper
     const XML_PATH_CONFIG_HOLD_STOCK_ORDER = 'payment/cardlink_checkout/hold_stock_order';
     const XML_PATH_CONFIG_CANCELED_ORDER_EXPIRATION = 'payment/cardlink_checkout/canceled_order_expiration';
 
+    
+    const XML_PATH_CONFIG_IRIS_SHORT_DESCRIPTION = 'payment/cardlink_checkout_iris/description';
     const XML_PATH_CONFIG_IRIS_BUSINESS_PARTNER = 'payment/cardlink_checkout_iris/business_partner';
     const XML_PATH_CONFIG_IRIS_TRANSACTION_ENVIRONMENT = 'payment/cardlink_checkout_iris/transaction_environment';
     const XML_PATH_CONFIG_IRIS_MERCHANT_ID = 'payment/cardlink_checkout_iris/merchant_id';
     const XML_PATH_CONFIG_IRIS_SHARED_SECRET = 'payment/cardlink_checkout_iris/shared_secret';
-    const XML_PATH_CONFIG_IRIS_DIAS_CODE = 'payment/cardlink_checkout_iris/dias_code';
     const XML_PATH_CONFIG_IRIS_ENABLED = 'payment/cardlink_checkout_iris/active';
+    const XML_PATH_CONFIG_IRIS_ORDER_STATUS = 'payment/cardlink_checkout_iris/order_status';
     const XML_PATH_CONFIG_IRIS_CSS_URL = 'payment/cardlink_checkout_iris/css_url';
+    const XML_PATH_CONFIG_IRIS_FORCE_STORE_LANGUAGE = 'payment/cardlink_checkout_iris/force_store_language';
     const XML_PATH_CONFIG_IRIS_DISPLAY_PAYMENT_METHOD_LOGO = 'payment/cardlink_checkout_iris/display_payment_method_logo';
     const XML_PATH_CONFIG_IRIS_HOLD_STOCK_ORDER = 'payment/cardlink_checkout_iris/hold_stock_order';
     const XML_PATH_CONFIG_IRIS_CANCELED_ORDER_EXPIRATION = 'payment/cardlink_checkout_iris/canceled_order_expiration';
@@ -143,13 +146,23 @@ class Data extends AbstractHelper
     }
 
     /**
-     * Returns the configured shared secret code.
+     * Returns the configured short description.
      *
      * @return string
      */
     public function getDescription()
     {
         return self::getStoreConfigValue(self::XML_PATH_CONFIG_SHORT_DESCRIPTION);
+    }
+
+    /**
+     * Returns the configured short description for IRIS.
+     *
+     * @return string
+     */
+    public function getIrisDescription()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_SHORT_DESCRIPTION);
     }
 
     /**
@@ -176,6 +189,22 @@ class Data extends AbstractHelper
     public function getNewOrderStatus()
     {
         $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_ORDER_STATUS);
+
+        if (!$config) {
+            return \Magento\Sales\Model\Order::STATE_PENDING_PAYMENT;
+        }
+
+        return $config;
+    }
+
+    /**
+     * Returns the configured order status after successful payment for IRIS.
+     *
+     * @return string
+     */
+    public function getIrisNewOrderStatus()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_ORDER_STATUS);
 
         if (!$config) {
             return \Magento\Sales\Model\Order::STATE_PENDING_PAYMENT;
@@ -319,6 +348,16 @@ class Data extends AbstractHelper
     }
 
     /**
+     * Determines whether the payment gateway must use the language of the store that the order was placed in.
+     *
+     * @return bool
+     */
+    public function getIrisForceStoreLanguage()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_IRIS_FORCE_STORE_LANGUAGE);
+    }
+
+    /**
      * Determines that the payment flow will be executed inside an IFRAME at the checkout page.
      *
      * @return bool
@@ -453,21 +492,10 @@ class Data extends AbstractHelper
         );
         return $ret;
     }
-
     /**
-     * Returns the configured DIAS code.
-     * 
-     * @return string
-     */
-    public function getDiasCode()
-    {
-        return trim((string) self::getStoreConfigValue(self::XML_PATH_CONFIG_IRIS_DIAS_CODE));
-    }
-
-    /**
-     * Returns the configured DIAS code.
-     * 
-     * @return string
+     * Determines whether the IRIS payment method is enabled for the current store.
+     *
+     * @return bool
      */
     public function isIrisEnabled()
     {

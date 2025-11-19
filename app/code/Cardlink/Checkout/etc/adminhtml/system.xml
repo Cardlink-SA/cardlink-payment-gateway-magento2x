@@ -12,7 +12,7 @@
 
                 <field id="order_status" translate="label" type="select" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="0" canRestore="1">
                     <label>New Order Status</label>
-                    <source_model>Magento\Sales\Model\Config\Source\Order\Status\NewStatus</source_model>
+                    <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>
                 </field>
 
                 <field id="allowspecific" translate="label" type="allowspecific" sortOrder="12" showInDefault="1" showInWebsite="1" showInStore="0" canRestore="1">
@@ -202,7 +202,7 @@
 
                 <field id="order_status" translate="label" type="select" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="0" canRestore="1">
                     <label>New Order Status</label>
-                    <source_model>Magento\Sales\Model\Config\Source\Order\Status\NewStatus</source_model>
+                    <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>
                 </field>
 
                 <field id="allowspecific" translate="label" type="allowspecific" sortOrder="12" showInDefault="1" showInWebsite="1" showInStore="0" canRestore="1">
@@ -268,9 +268,13 @@
                     </depends>
                 </field>
 
-                <field id="dias_code" translate="label comment" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>DIAS Code</label>
-                    <comment>The merchant's code on the DIAS network.</comment>
+                <field id="force_store_language" translate="label comment" type="select" sortOrder="91" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Force Store Language on Cardlink's Payment Gateway</label>
+                    <comment>Instruct Cardlink's Payment Gateway to use the language of the store that the order gets placed.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enable">1</field>
+                    </depends>
                 </field>
 
                 <field id="display_payment_method_logo" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">

@@ -16,6 +16,7 @@ define(
                 }
             );
         }
+        
         return Component.extend({});
     }
 );

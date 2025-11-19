@@ -9,6 +9,8 @@
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 ## Changelog
+- **1.2.4**
+  - Remove requirement for IRIS customer code configuration setting.
 - **1.2.3**
   - Add Cardlink and Worldline as IRIS business partners.
   - Various fixes for IRIS payments.
@@ -154,7 +156,7 @@ If you are still unsure or unfamiliar with the actions described above, please a
 
 ![screencapture-checkout](README-IMAGES/screencapture-checkout.png)
 
-3. To set up IRIS payments, you will need to have the Merchant ID, Shared Secret and DIAS Customer ID specifically issued for use with IRIS. Other settings are similar to the ones for Card Payments.
+3. To set up IRIS payments, you will need to have the Merchant ID and Shared Secret specifically issued for use with IRIS. Other settings are similar to the ones for Card Payments.
 
 ![screen-capture-admin-system-iris-configuration](README-IMAGES/screen-capture-admin-system-iris-configuration.png)
 

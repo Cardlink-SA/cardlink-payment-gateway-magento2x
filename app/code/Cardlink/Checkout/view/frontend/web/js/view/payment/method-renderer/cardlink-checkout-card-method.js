@@ -48,6 +48,10 @@ define(
                 return 'cardlink_checkout';
             },
 
+            getDescription() {
+                return window.checkoutConfig.payment.cardlink_checkout.description;
+            },
+
             acceptsInstallments: function () {
                 return window.checkoutConfig.payment.cardlink_checkout.acceptsInstallments;
             },

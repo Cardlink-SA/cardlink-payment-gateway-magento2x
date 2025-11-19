@@ -75,8 +75,8 @@
                 <merchant_id></merchant_id>
                 <shared_secret></shared_secret>
                 <business_partner>cardlink</business_partner>
+                <force_store_language>1</force_store_language>
                 <transaction_environment>sandbox</transaction_environment>
-                <dias_code></dias_code>
                 <canceled_order_expiration>10</canceled_order_expiration>
                 <hold_stock_order>1</hold_stock_order>
             </cardlink_checkout_iris>

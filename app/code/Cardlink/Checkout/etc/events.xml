@@ -9,4 +9,13 @@
         <observer name="cardlink_checkout_orderpaymentsavebefore" instance="Cardlink\Checkout\Observer\OrderPaymentSaveBefore" />
     </event>
 
+    <!-- Fires when an order is placed/saved -->
+    <event name="sales_order_place_after">
+        <observer name="cardlink_update_grid_quote_id"
+                  instance="Cardlink\Checkout\Observer\UpdateGridQuoteId"/>
+    </event>
+    <event name="sales_order_save_after">
+        <observer name="cardlink_update_grid_quote_id_on_save"
+                  instance="Cardlink\Checkout\Observer\UpdateGridQuoteId"/>
+    </event>
 </config>

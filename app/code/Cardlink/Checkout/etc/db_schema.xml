@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+
+    <table name="sales_order_grid">
+        <column xsi:type="int" name="quote_id" nullable="true" comment="Quote ID" />
+        <index referenceId="SALES_ORDER_GRID_QUOTE_ID"
+               indexType="btree">
+            <column name="quote_id"/>
+        </index>
+    </table>
+</schema>

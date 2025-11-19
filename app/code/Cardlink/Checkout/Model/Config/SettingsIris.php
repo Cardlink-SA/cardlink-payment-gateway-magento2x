@@ -99,7 +99,8 @@ class SettingsIris implements ConfigProviderInterface
             'payment' => [
                 self::CODE => [
                     'enable' => true,
-                    // $this->dataHelper->isEnabled(),
+                    // $this->dataHelper->isEnabled(),                    
+                    'description' => $this->dataHelper->getIrisDescription(),
                     'displayLogoInTitle' => $this->dataHelper->displayIrisLogoInTitle(),
                     'checkoutInIFrame' => $this->dataHelper->doCheckoutInIframe(),
                     'logoUrl' => $this->dataHelper->getIrisLogoUrl()

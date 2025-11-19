@@ -64,8 +64,6 @@
 "Merchant and display settings for the 'Pay via Card' method are shared with this method.","Οι ρυθμίσεις εμπόρου και εμφάνισης της μεθόδου 'Πληρωμή μέσω Κάρτας' μοιράζονται με αυτή τη μέθοδο πληρωμής."
 "Pay via IRIS","Πληρωμή μέσω IRIS"
 "Pay via IRIS.","Πληρώστε μέσω IRIS."
-"DIAS Code","Κωδικός ΔΙΑΣ"
-"The merchant's code on the DIAS network.","Ο κωδικός εμπόρου στο δίκτυο ΔΙΑΣ."
 "Display IRIS Logo","Εμφάνιση Λογότυπου IRIS"
 "Display the IRIS logo next to the payment method title.","Εμφάνιση του λογότυπου IRIS μαζί με τον τίτλο της μεθόδου πληρωμής."
 "The payment was canceled by you or declined by the bank. Your order has been canceled.","Η πληρωμή ακυρώθηκε από εσάς ή απορρίφθηκε από την τράπεζα. Η παραγγελία σας ακυρώθηκε."
