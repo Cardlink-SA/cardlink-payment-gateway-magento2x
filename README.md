@@ -10,9 +10,9 @@
 
 ## Changelog
 - **1.2.4**
-  - Remove requirement for IRIS customer code configuration setting.
+  - Remove requirement for IRIS customer code configuration setting. (If you already use IRIS with your own seller id, DO NOT install the new version!)
 - **1.2.3**
-  - Add Cardlink and Worldline as IRIS business partners.
+  - Add Cardlink and Worldline as IRIS business partners. (If you already use IRIS with your own seller id, DO NOT install the new version!)
   - Various fixes for IRIS payments.
 - **1.2.2**
   - Fix minor IRIS redirection issues.
