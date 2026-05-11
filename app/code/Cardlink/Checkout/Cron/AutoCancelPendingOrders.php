@@ -63,7 +63,7 @@ class AutoCancelPendingOrders
                     'expiration_time' => (int) max($minCancelledOrderExpiration, (int)$this->dataHelper->getIrisCanceledOrderExpiration()),
                     'payment_method' => 'cardlink_checkout_iris',
                     'new_order_status' => $this->dataHelper->getIrisNewOrderStatus()
-                ]
+                ],
             ];
 
             foreach ($configs as $type => $config) {

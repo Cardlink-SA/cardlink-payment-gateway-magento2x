@@ -27,6 +27,22 @@
         </arguments>
     </type>
 
+    <type name="Magento\Checkout\Model\CompositeConfigProvider">
+        <arguments>
+            <argument name="configProviders" xsi:type="array">
+                <item name="cardlink_checkout_googlepay_config_provider" xsi:type="object">Cardlink\Checkout\Model\Config\SettingsGooglePay</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Magento\Checkout\Model\CompositeConfigProvider">
+        <arguments>
+            <argument name="configProviders" xsi:type="array">
+                <item name="cardlink_checkout_applepay_config_provider" xsi:type="object">Cardlink\Checkout\Model\Config\SettingsApplePay</item>
+            </argument>
+        </arguments>
+    </type>
+
     <type name="Cardlink\Checkout\Block\Info">
         <arguments>
             <argument name="data" xsi:type="array">
@@ -40,6 +56,24 @@
         <arguments>
             <argument name="data" xsi:type="array">
                 <item name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsIris::CODE</item>
+                <item xsi:type="string" name="is_secure_mode">1</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Cardlink\Checkout\Block\InfoGooglePay">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE</item>
+                <item xsi:type="string" name="is_secure_mode">1</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Cardlink\Checkout\Block\InfoApplePay">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsApplePay::CODE</item>
                 <item xsi:type="string" name="is_secure_mode">1</item>
             </argument>
         </arguments>

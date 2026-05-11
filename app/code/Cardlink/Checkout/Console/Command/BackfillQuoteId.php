@@ -37,8 +37,10 @@ class BackfillQuoteId extends Command
         $sql = "
             UPDATE {$sog} AS sog
             INNER JOIN {$so} AS so ON so.entity_id = sog.entity_id
-            SET sog.quote_id = so.quote_id
-            WHERE sog.quote_id IS NULL
+            SET
+                sog.quote_id = so.quote_id
+            WHERE
+                sog.quote_id IS NULL
         ";
 
         $affected = (int)$conn->exec($sql);

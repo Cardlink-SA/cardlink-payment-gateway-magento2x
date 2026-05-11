@@ -8,5 +8,38 @@
                 <value id="eurocommerce_domain" type="host">*.eurocommerce.gr</value>
             </values>
         </policy>
+        <policy id="script-src">
+            <values>
+                <value id="cardlink_script" type="host">*.cardlink.gr</value>
+                <value id="alphaecommerce_script" type="host">*.alphaecommerce.gr</value>
+                <value id="eurocommerce_script" type="host">*.eurocommerce.gr</value>
+                <value id="google_pay_script" type="host">pay.google.com</value>
+                <value id="google_apis_script" type="host">*.googleapis.com</value>
+                <value id="apple_pay_script" type="host">apple-pay-gateway-cert.apple.com</value>
+                <value id="apple_pay_script_prod" type="host">apple-pay-gateway.apple.com</value>
+            </values>
+        </policy>
+        <policy id="frame-src">
+            <values>
+                <value id="google_pay_frame" type="host">pay.google.com</value>
+                <value id="google_apis_frame" type="host">*.googleapis.com</value>
+                <value id="cardlink_frame" type="host">*.cardlink.gr</value>
+                <value id="alphaecommerce_frame" type="host">*.alphaecommerce.gr</value>
+                <value id="eurocommerce_frame" type="host">*.eurocommerce.gr</value>
+                <value id="apple_pay_frame" type="host">apple-pay-gateway-cert.apple.com</value>
+                <value id="apple_pay_frame_prod" type="host">apple-pay-gateway.apple.com</value>
+            </values>
+        </policy>
+        <policy id="connect-src">
+            <values>
+                <value id="cardlink_connect" type="host">*.cardlink.gr</value>
+                <value id="alphaecommerce_connect" type="host">*.alphaecommerce.gr</value>
+                <value id="eurocommerce_connect" type="host">*.eurocommerce.gr</value>
+                <value id="google_pay_connect" type="host">pay.google.com</value>
+                <value id="google_apis_connect" type="host">*.googleapis.com</value>
+                <value id="apple_pay_connect" type="host">apple-pay-gateway-cert.apple.com</value>
+                <value id="apple_pay_connect_prod" type="host">apple-pay-gateway.apple.com</value>
+            </values>
+        </policy>
     </policies>
 </csp_whitelist>

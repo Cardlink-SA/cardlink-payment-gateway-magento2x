@@ -193,6 +193,12 @@ class Payment extends AbstractHelper
         if ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsIris::CODE) {
             $businessPartner = $this->dataHelper->getIrisBusinessPartner();
             $transactionEnvironment = $this->dataHelper->getIrisTransactionEnvironment();
+        } elseif ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE) {
+            $businessPartner = $this->dataHelper->getGooglePayBusinessPartner();
+            $transactionEnvironment = $this->dataHelper->getGooglePayTransactionEnvironment();
+        } elseif ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsApplePay::CODE) {
+            $businessPartner = $this->dataHelper->getApplePayBusinessPartner();
+            $transactionEnvironment = $this->dataHelper->getApplePayTransactionEnvironment();
         } else {
             $businessPartner = $this->dataHelper->getBusinessPartner();
             $transactionEnvironment = $this->dataHelper->getTransactionEnvironment();
@@ -309,19 +315,100 @@ class Payment extends AbstractHelper
 
         if ($billingAddress == false || $shippingAddress == false) {
             if ($this->dataHelper->logDebugInfoEnabled()) {
-                $this->_logger->error("Invalid billing/shipping address for quote {$quoteId}.");
+                $this->logger->error("Invalid billing/shipping address for quote {$quoteId}.");
             }
             return false;
         }
 
-        $payerEmail = $billingAddress->getEmail();
+        $paymentMethodCode = $checkoutSession->getQuote()->getPayment()->getMethod();
+
+        return $this->buildFormData(
+            'QUOTEx' . $quoteId . 'x' . self::incrementalHash(ApiFields::OrderId_SuffixLength - 1),
+            floatval($quote->getGrandTotal()),
+            $quote->getQuoteCurrencyCode(),
+            $quote->getStore()->getCode(),
+            $billingAddress,
+            $shippingAddress,
+            $payment,
+            $paymentMethodCode,
+            $quote->getCustomerId(),
+            'QUOTE'
+        );
+    }
+
+    /**
+     * Build the form data for the payment gateway API endpoint to perform the requested transaction.
+     *
+     * @param Order $order The entity of the order.
+     * @return array An associative array containing the data that will be sent to the payment gateway's API endpoint to perform the requested transaction.
+     */
+    public function getFormDataForOrder($order)
+    {
+        $orderId = $order->getIncrementId();
+
+        $billingAddress = $order->getBillingAddress();
+        $shippingAddress = $order->getShippingAddress();
+        $payment = $order->getPayment();
+
+        if ($billingAddress == false || $shippingAddress == false) {
+            if ($this->dataHelper->logDebugInfoEnabled()) {
+                $this->logger->error("Invalid billing/shipping address for order {$orderId}.");
+            }
+            return false;
+        }
+
+        $paymentMethodCode = $payment->getMethodInstance()->getCode();
+
+        return $this->buildFormData(
+            $orderId,
+            floatval($order->getGrandTotal()),
+            $order->getOrderCurrencyCode(),
+            $order->getStore()->getCode(),
+            $billingAddress,
+            $shippingAddress,
+            $payment,
+            $paymentMethodCode,
+            $order->getCustomerId(),
+            'ORDER'
+        );
+    }
+
+    /**
+     * Build the form data for the payment gateway API endpoint.
+     *
+     * This method contains the common logic for building payment request data,
+     * shared between quote and order processing.
+     *
+     * @param string $entityId The quote or order ID
+     * @param float $grandTotal The total amount
+     * @param string $currencyCode The currency code
+     * @param string $storeCode The store code
+     * @param mixed $billingAddress The billing address object
+     * @param mixed $shippingAddress The shipping address object
+     * @param mixed $payment The payment object
+     * @param string $paymentMethodCode The payment method code
+     * @param int|null $customerId The customer ID
+     * @param string $descriptionPrefix 'QUOTE' or 'ORDER' prefix for description
+     * @return array The signed form data array
+     */
+    private function buildFormData(
+        $entityId,
+        float $grandTotal,
+        string $currencyCode,
+        string $storeCode,
+        $billingAddress,
+        $shippingAddress,
+        $payment,
+        string $paymentMethodCode,
+        $customerId,
+        string $descriptionPrefix
+    ): array {
+        $formData = [];
 
         // Version number - must be '2'
         $formData[ApiFields::Version] = '2';
         // Device category - always '0'
         $formData[ApiFields::DeviceCategory] = '0';
-        //// Maximum number of payment retries - set to 10
-        //$formData[ApiFields::MaxPayRetries] = '10';
 
         // The type of transaction to perform (Sale/Authorize).
         $formData[ApiFields::TransactionType] = $this->getTransactionTypeValue();
@@ -331,16 +418,20 @@ class Payment extends AbstractHelper
         $formData[ApiFields::CancelUrl] = $this->getTransactionCancelUrl();
 
         // Order information
-        $formData[ApiFields::OrderId] = $quoteId . 'x' . self::incrementalHash(ApiFields::OrderId_SuffixLength - 1);
-        $formData[ApiFields::OrderAmount] = floatval($quote->getGrandTotal()); // Get order total amount
-        $formData[ApiFields::Currency] = $quote->getQuoteCurrencyCode(); // Get order currency code
+        $formData[ApiFields::OrderId] = $entityId . 'x' . self::incrementalHash(ApiFields::OrderId_SuffixLength - 1);
+        $formData[ApiFields::OrderAmount] = $grandTotal;
+        $formData[ApiFields::Currency] = $currencyCode;
 
         $enableIrisPayments = $this->dataHelper->isIrisEnabled();
+        $isIrisPayment = ($paymentMethodCode == \Cardlink\Checkout\Model\Config\SettingsIris::CODE && $enableIrisPayments);
 
-        $payment_method_code = $checkoutSession->getQuote()->getPayment()->getMethod();
+        $enableGooglePay = $this->dataHelper->isGooglePayEnabled();
+        $isGooglePayPayment = ($paymentMethodCode == \Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE && $enableGooglePay);
 
-        if ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsIris::CODE && $enableIrisPayments) {
+        $enableApplePay = $this->dataHelper->isApplePayEnabled();
+        $isApplePayPayment = ($paymentMethodCode == \Cardlink\Checkout\Model\Config\SettingsApplePay::CODE && $enableApplePay);
 
+        if ($isIrisPayment) {
             // The Merchant ID
             $formData[ApiFields::MerchantId] = $this->dataHelper->getIrisMerchantId();
             $sharedSecret = $this->dataHelper->getIrisSharedSecret();
@@ -356,18 +447,49 @@ class Payment extends AbstractHelper
                 $locale = $this->scopeConfig->getValue(
                     'general/locale/code',
                     \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-                    $quote->getStore()->getCode()
+                    $storeCode
                 );
                 $lang = explode('_', $locale)[0];
                 $formData[ApiFields::Language] = $lang;
             }
-        } else {
+        } elseif ($isGooglePayPayment) {
+            // Google Pay payment configuration
+            $formData[ApiFields::MerchantId] = $this->dataHelper->getGooglePayMerchantId();
+            $sharedSecret = $this->dataHelper->getGooglePaySharedSecret();
 
+            $formData[ApiFields::OrderDescription] = $descriptionPrefix . ' ' . $entityId;
+
+            // Google Pay transaction type
+            $googlePayTransactionType = $this->dataHelper->getGooglePayTransactionType();
+            if ($googlePayTransactionType == \Cardlink\Checkout\Model\Config\Source\TransactionTypes::TRANSACTION_TYPE_AUTHORIZE) {
+                $formData[ApiFields::TransactionType] = '2';
+            } else {
+                $formData[ApiFields::TransactionType] = '1';
+            }
+
+            $cssUrl = '';
+        } elseif ($isApplePayPayment) {
+            // Apple Pay payment configuration
+            $formData[ApiFields::MerchantId] = $this->dataHelper->getApplePayMerchantId();
+            $sharedSecret = $this->dataHelper->getApplePaySharedSecret();
+
+            $formData[ApiFields::OrderDescription] = $descriptionPrefix . ' ' . $entityId;
+
+            // Apple Pay transaction type
+            $applePayTransactionType = $this->dataHelper->getApplePayTransactionType();
+            if ($applePayTransactionType == \Cardlink\Checkout\Model\Config\Source\TransactionTypes::TRANSACTION_TYPE_AUTHORIZE) {
+                $formData[ApiFields::TransactionType] = '2';
+            } else {
+                $formData[ApiFields::TransactionType] = '1';
+            }
+
+            $cssUrl = '';
+        } else {
             // The Merchant ID
             $formData[ApiFields::MerchantId] = $this->dataHelper->getMerchantId();
             $sharedSecret = $this->dataHelper->getSharedSecret();
 
-            $formData[ApiFields::OrderDescription] = 'QUOTE ' . $quoteId;
+            $formData[ApiFields::OrderDescription] = $descriptionPrefix . ' ' . $entityId;
 
             // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
             $cssUrl = trim((string) $this->dataHelper->getCssUrl());
@@ -376,8 +498,7 @@ class Payment extends AbstractHelper
             if ($this->dataHelper->acceptsInstallments()) {
                 // Enforce installments limit
                 $maxInstallments = $this->getMaxInstallments($formData[ApiFields::OrderAmount]);
-
-                $installments = max(0, min($maxInstallments, $quote->getPayment()->getCardlinkInstallments() + 0));
+                $installments = max(0, min($maxInstallments, $payment->getCardlinkInstallments() + 0));
 
                 if ($installments > 1) {
                     $formData[ApiFields::ExtInstallmentoffset] = 0;
@@ -389,7 +510,7 @@ class Payment extends AbstractHelper
             if ($this->dataHelper->allowsTokenization()) {
                 if ($payment->getCardlinkStoredToken() > 0) {
                     $paymentToken = $this->tokenizationHelper->getCustomerPaymentToken(
-                        $quote->getCustomerId(),
+                        $customerId,
                         $payment->getCardlinkStoredToken()
                     );
 
@@ -407,154 +528,7 @@ class Payment extends AbstractHelper
                 $locale = $this->scopeConfig->getValue(
                     'general/locale/code',
                     \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-                    $quote->getStore()->getCode()
-                );
-                $lang = explode('_', $locale)[0];
-                $formData[ApiFields::Language] = $lang;
-            }
-        }
-
-        // Payer/customer information
-        $formData[ApiFields::PayerEmail] = $payerEmail;
-        $formData[ApiFields::PayerPhone] = $billingAddress->getTelephone();
-
-        // Billing information
-        $formData[ApiFields::BillCountry] = $billingAddress->getCountryId();
-        //$formData[ApiFields::BillState] = $billingAddress->getRegionCode();
-        $formData[ApiFields::BillZip] = $billingAddress->getPostcode();
-        $formData[ApiFields::BillCity] = $billingAddress->getCity();
-        $formData[ApiFields::BillAddress] = $billingAddress->getStreet(1)[0];
-
-        // Shipping information
-        $formData[ApiFields::ShipCountry] = $shippingAddress->getCountryId();
-        //$formData[ApiFields::ShipState] = $shippingAddress->getRegionCode();
-        $formData[ApiFields::ShipZip] = $shippingAddress->getPostcode();
-        $formData[ApiFields::ShipCity] = $shippingAddress->getCity();
-        $formData[ApiFields::ShipAddress] = $shippingAddress->getStreet(1)[0];
-
-        if ($cssUrl != '') {
-            $formData[ApiFields::CssUrl] = $cssUrl;
-        }
-
-        // Calculate the digest of the transaction request data and append it.
-        $signedFormData = self::signRequestFormData($formData, $sharedSecret);
-
-        if ($this->dataHelper->logDebugInfoEnabled()) {
-            $this->logger->debug("Valid payment request created for quote {$quoteId}.");
-            $this->logger->debug(json_encode($signedFormData, JSON_PRETTY_PRINT));
-        }
-
-        return $signedFormData;
-    }
-
-    public function getFormDataForOrder($order)
-    {
-        $orderId = $order->getIncrementId();
-
-        $billingAddress = $order->getBillingAddress();
-        $shippingAddress = $order->getShippingAddress();
-        $payment = $order->getPayment();
-
-        if ($billingAddress == false || $shippingAddress == false) {
-            if ($this->dataHelper->logDebugInfoEnabled()) {
-                $this->_logger->error("Invalid billing/shipping address for order {$orderId}.");
-            }
-            return false;
-        }
-
-        // Version number - must be '2'
-        $formData[ApiFields::Version] = '2';
-        // Device category - always '0'
-        $formData[ApiFields::DeviceCategory] = '0';
-        //// Maximum number of payment retries - set to 10
-        //$formData[ApiFields::MaxPayRetries] = '10';
-
-        // The type of transaction to perform (Sale/Authorize).
-        $formData[ApiFields::TransactionType] = $this->getTransactionTypeValue();
-
-        // Transaction success/failure return URLs
-        $formData[ApiFields::ConfirmUrl] = $this->getTransactionSuccessUrl();
-        $formData[ApiFields::CancelUrl] = $this->getTransactionCancelUrl();
-
-        // Order information
-        $formData[ApiFields::OrderId] = $orderId . 'x' . self::incrementalHash(ApiFields::OrderId_SuffixLength - 1);
-        $formData[ApiFields::OrderAmount] = floatval($order->getGrandTotal()); // Get order total amount
-        $formData[ApiFields::Currency] = $order->getOrderCurrencyCode(); // Get order currency code
-
-        $enableIrisPayments = $this->dataHelper->isIrisEnabled();
-
-        $method = $payment->getMethodInstance();
-        $payment_method_code = $method->getCode();
-
-        if ($payment_method_code == \Cardlink\Checkout\Model\Config\SettingsIris::CODE && $enableIrisPayments) {
-
-            // The Merchant ID
-            $formData[ApiFields::MerchantId] = $this->dataHelper->getIrisMerchantId();
-            $sharedSecret = $this->dataHelper->getIrisSharedSecret();
-
-            $formData[ApiFields::PaymentMethod] = 'IRIS';
-            $formData[ApiFields::TransactionType] = '1';
-
-            // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
-            $cssUrl = trim((string) $this->dataHelper->getIrisCssUrl());
-            
-            // Instruct the payment gateway to use the store language for its UI.
-            if ($this->dataHelper->getIrisForceStoreLanguage()) {
-                $locale = $this->scopeConfig->getValue(
-                    'general/locale/code',
-                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-                    $order->getStore()->getCode()
-                );
-                $lang = explode('_', $locale)[0];
-                $formData[ApiFields::Language] = $lang;
-            }
-        } else {
-
-            // The Merchant ID
-            $formData[ApiFields::MerchantId] = $this->dataHelper->getMerchantId();
-            $sharedSecret = $this->dataHelper->getSharedSecret();
-
-            $formData[ApiFields::OrderDescription] = 'ORDER ' . $orderId;
-
-            // The optional URL of a CSS file to be included in the pages of the payment gateway for custom formatting.
-            $cssUrl = trim((string) $this->dataHelper->getCssUrl());
-
-            // Installments information.
-            if ($this->dataHelper->acceptsInstallments()) {
-                // Enforce installments limit
-                $maxInstallments = $this->getMaxInstallments($formData[ApiFields::OrderAmount]);
-
-                $installments = max(0, min($maxInstallments, $order->getPayment()->getCardlinkInstallments() + 0));
-
-                if ($installments > 1) {
-                    $formData[ApiFields::ExtInstallmentoffset] = 0;
-                    $formData[ApiFields::ExtInstallmentperiod] = $installments;
-                }
-            }
-
-            // Tokenization
-            if ($this->dataHelper->allowsTokenization()) {
-                if ($payment->getCardlinkStoredToken() > 0) {
-                    $paymentToken = $this->tokenizationHelper->getCustomerPaymentToken(
-                        $order->getCustomerId(),
-                        $payment->getCardlinkStoredToken()
-                    );
-
-                    if ($paymentToken != null && $paymentToken->getIsActive()) {
-                        $formData[ApiFields::ExtTokenOptions] = 100;
-                        $formData[ApiFields::ExtToken] = $paymentToken->getGatewayToken();
-                    }
-                } else if ($payment->getCardlinkTokenizeCard()) {
-                    $formData[ApiFields::ExtTokenOptions] = 100;
-                }
-            }
-            
-            // Instruct the payment gateway to use the store language for its UI.
-            if ($this->dataHelper->getForceStoreLanguage()) {
-                $locale = $this->scopeConfig->getValue(
-                    'general/locale/code',
-                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-                    $order->getStore()->getCode()
+                    $storeCode
                 );
                 $lang = explode('_', $locale)[0];
                 $formData[ApiFields::Language] = $lang;
@@ -567,14 +541,12 @@ class Payment extends AbstractHelper
 
         // Billing information
         $formData[ApiFields::BillCountry] = $billingAddress->getCountryId();
-        //$formData[ApiFields::BillState] = $billingAddress->getRegionCode();
         $formData[ApiFields::BillZip] = $billingAddress->getPostcode();
         $formData[ApiFields::BillCity] = $billingAddress->getCity();
         $formData[ApiFields::BillAddress] = $billingAddress->getStreet(1)[0];
 
         // Shipping information
         $formData[ApiFields::ShipCountry] = $shippingAddress->getCountryId();
-        //$formData[ApiFields::ShipState] = $shippingAddress->getRegionCode();
         $formData[ApiFields::ShipZip] = $shippingAddress->getPostcode();
         $formData[ApiFields::ShipCity] = $shippingAddress->getCity();
         $formData[ApiFields::ShipAddress] = $shippingAddress->getStreet(1)[0];
@@ -587,7 +559,7 @@ class Payment extends AbstractHelper
         $signedFormData = self::signRequestFormData($formData, $sharedSecret);
 
         if ($this->dataHelper->logDebugInfoEnabled()) {
-            $this->logger->debug("Valid payment request created for order {$orderId}.");
+            $this->logger->debug("Valid payment request created for {$descriptionPrefix} {$entityId}.");
             $this->logger->debug(json_encode($signedFormData, JSON_PRETTY_PRINT));
         }
 
@@ -710,19 +682,7 @@ class Payment extends AbstractHelper
             $charge = $responseData[ApiFields::OrderAmount];
 
             if ($this->dataHelper->logDebugInfoEnabled()) {
-                $this->logger->debug("Setting state of order {$order->getIncrementId()} to 'Payment Review'.");
-            }
-
-            $order
-                ->setStatus(\Magento\Sales\Model\Order::STATE_PAYMENT_REVIEW)
-                ->setState(\Magento\Sales\Model\Order::STATE_PAYMENT_REVIEW, true)
-                ->addStatusHistoryComment("Payment Success - " . strtoupper($responseData[ApiFields::PaymentMethod]) . " " . $responseData[ApiFields::Status]);
-
-            try {
-                $this->orderRepository->save($order);
-            } catch (\Exception $e) {
-                $this->logger->error($e);
-                $this->messageManager->addExceptionMessage($e, $e->getMessage());
+                $this->logger->debug("Processing successful payment for order {$order->getIncrementId()}.");
             }
 
             $payment = $order->getPayment();
@@ -731,13 +691,24 @@ class Payment extends AbstractHelper
             $payment->setCardlinkTxId($responseData[ApiFields::TransactionId]);
             $payment->setCardlinkPayMethod($responseData[ApiFields::PaymentMethod]);
             $payment->setCardlinkPayRef($responseData[ApiFields::PaymentReferenceId]);
+            $payment->setCardlinkOrderId($responseData[ApiFields::OrderId]);
+
+            // Save payment immediately to persist cardlink fields (especially cardlink_order_id
+            // which is required for capture/refund/void operations via the XML API)
+            try {
+                $payment->save();
+            } catch (\Exception $e) {
+                $this->logger->error('Failed to save payment with Cardlink fields: ' . $e->getMessage());
+            }
 
             if ($this->dataHelper->logDebugInfoEnabled()) {
                 $this->logger->debug("Setting payment gateway information to payment object {$payment->getId()} (order {$order->getIncrementId()}).");
+                $this->logger->debug("Cardlink Order ID set to: {$responseData[ApiFields::OrderId]}");
             }
 
-            // Create invoice for order payment if transaction status was CAPTURED.
+            // Handle order state based on payment status
             if ($responseData[ApiFields::Status] == PaymentStatus::CAPTURED) {
+                // Payment was captured - set order to Processing and create invoice
                 if ($this->dataHelper->logDebugInfoEnabled()) {
                     $this->logger->debug("Payment was captured for order {$order->getIncrementId()}.");
                     $this->logger->debug("Setting state of order {$order->getIncrementId()} to 'Processing'.");
@@ -758,7 +729,9 @@ class Payment extends AbstractHelper
                 if ($order->canInvoice()) {
                     $order->getPayment()->setSkipTransactionCreation(false);
                     $invoice = $order->prepareInvoice();
-                    $invoice->setRequestedCaptureCase(\Magento\Sales\Model\Order\Invoice::CAPTURE_ONLINE);
+                    // Use CAPTURE_OFFLINE since the payment was already captured at Cardlink's side
+                    // CAPTURE_ONLINE would trigger the gateway capture command again, which would fail
+                    $invoice->setRequestedCaptureCase(\Magento\Sales\Model\Order\Invoice::CAPTURE_OFFLINE);
                     $invoice->register();
                     $invoice->save();
 
@@ -786,12 +759,31 @@ class Payment extends AbstractHelper
 
                     foreach ($order->getInvoiceCollection() as $orderInvoice) {
                         $orderInvoice->setState(\Magento\Sales\Model\Order\Invoice::STATE_PAID)
-                            // Only set TransactionId when possible to perform online refunds
-                            //->setTransactionId($responseData[ApiFields::TransactionId])
+                            // Set TransactionId to enable online refunds via the Cardlink XML API
+                            ->setTransactionId($responseData[ApiFields::TransactionId])
                             ->setBaseGrandTotal($charge)
                             ->setGrandTotal($charge)
                             ->save();
                     }
+                }
+            } elseif ($responseData[ApiFields::Status] == PaymentStatus::AUTHORIZED) {
+                // Payment was authorized (preauthorized) - set order to Processing with custom status
+                // The capture will happen when an invoice is created with CAPTURE_ONLINE
+                if ($this->dataHelper->logDebugInfoEnabled()) {
+                    $this->logger->debug("Payment was authorized (preauthorized) for order {$order->getIncrementId()}.");
+                    $this->logger->debug("Setting state of order {$order->getIncrementId()} to 'Processing' with status 'cardlink_authorized'.");
+                }
+
+                $order
+                    ->setStatus('cardlink_authorized')
+                    ->setState(\Magento\Sales\Model\Order::STATE_PROCESSING, true)
+                    ->addStatusHistoryComment("Authorized Transaction ID: " . $responseData[ApiFields::TransactionId] . " - Awaiting capture via invoice creation.");
+
+                try {
+                    $this->orderRepository->save($order);
+                } catch (\Exception $e) {
+                    $this->logger->error($e);
+                    $this->messageManager->addExceptionMessage($e, $e->getMessage());
                 }
             }
 
@@ -1008,6 +1000,14 @@ class Payment extends AbstractHelper
             $payment->setTransactionId($paymentData[ApiFields::TransactionId]);
             $payment->setAdditionalInformation([Transaction::RAW_DETAILS => (array) $paymentData]);
 
+            // For authorization transactions, keep the transaction open so it can be captured later
+            // For capture transactions, close the transaction
+            if ($type === Transaction::TYPE_AUTH) {
+                $payment->setIsTransactionClosed(false);
+            } else {
+                $payment->setIsTransactionClosed(true);
+            }
+
             // Formatted price
             $formatedPrice = $order->getBaseCurrency()->formatTxt($order->getGrandTotal());
 
@@ -1019,9 +1019,18 @@ class Payment extends AbstractHelper
                 ->setFailSafe(true)
                 ->build($type);
 
+            // For authorization, mark transaction as open (IsClosed = 0) to allow capture
+            if ($type === Transaction::TYPE_AUTH) {
+                $transaction->setIsClosed(false);
+            }
+
             // Add transaction to payment
             $payment->addTransactionCommentsToOrder($transaction, __('The authorized amount is %1.', $formatedPrice));
-            $payment->setParentTransactionId(null);
+
+            // Only clear parent transaction for auth transactions (first in chain)
+            if ($type === Transaction::TYPE_AUTH) {
+                $payment->setParentTransactionId(null);
+            }
 
             // Save payment, transaction and order
             $payment->save();

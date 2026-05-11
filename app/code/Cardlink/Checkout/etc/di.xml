@@ -13,6 +13,10 @@
         <plugin name="change_is_enable_method" type="Cardlink\Checkout\Plugin\Sales\Order\Email\Container\OrderIdentityPlugin"/>
     </type>
 
+    <type name="Magento\Csp\Model\CompositePolicyCollector">
+        <plugin name="cardlink_csp_allow_inline_script" type="Cardlink\Checkout\Plugin\Csp\AllowInlineScriptPlugin"/>
+    </type>
+
     <!-- ////////////////////////////////////////////////////////// -->
 
     <virtualType name="CardlinkCheckoutFacade" type="Magento\Payment\Model\Method\Adapter">
@@ -22,6 +26,52 @@
             <argument name="infoBlockType" xsi:type="string">Cardlink\Checkout\Block\Info</argument>
             <argument name="valueHandlerPool" xsi:type="object">CardlinkCheckoutValueHandlerPool</argument>
             <argument name="validatorPool" xsi:type="object">CardlinkCheckoutValidatorPool</argument>
+            <argument name="commandPool" xsi:type="object">CardlinkCheckoutCommandPool</argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Gateway Command Pool for Cardlink Checkout -->
+    <virtualType name="CardlinkCheckoutCommandPool" type="Magento\Payment\Gateway\Command\CommandPool">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="capture" xsi:type="string">CardlinkCheckoutCaptureCommand</item>
+                <item name="refund" xsi:type="string">CardlinkCheckoutRefundCommand</item>
+                <item name="void" xsi:type="string">CardlinkCheckoutVoidCommand</item>
+                <item name="cancel" xsi:type="string">CardlinkCheckoutVoidCommand</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Capture Command -->
+    <virtualType name="CardlinkCheckoutCaptureCommand" type="Magento\Payment\Gateway\Command\GatewayCommand">
+        <arguments>
+            <argument name="requestBuilder" xsi:type="object">Cardlink\Checkout\Gateway\Request\CaptureRequestBuilder</argument>
+            <argument name="transferFactory" xsi:type="object">Cardlink\Checkout\Gateway\Http\TransferFactory</argument>
+            <argument name="client" xsi:type="object">Cardlink\Checkout\Gateway\Http\Client\TransactionClient</argument>
+            <argument name="handler" xsi:type="object">Cardlink\Checkout\Gateway\Response\CaptureHandler</argument>
+            <argument name="validator" xsi:type="object">Cardlink\Checkout\Gateway\Validator\ResponseValidator</argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Refund Command -->
+    <virtualType name="CardlinkCheckoutRefundCommand" type="Magento\Payment\Gateway\Command\GatewayCommand">
+        <arguments>
+            <argument name="requestBuilder" xsi:type="object">Cardlink\Checkout\Gateway\Request\RefundRequestBuilder</argument>
+            <argument name="transferFactory" xsi:type="object">Cardlink\Checkout\Gateway\Http\TransferFactory</argument>
+            <argument name="client" xsi:type="object">Cardlink\Checkout\Gateway\Http\Client\TransactionClient</argument>
+            <argument name="handler" xsi:type="object">Cardlink\Checkout\Gateway\Response\RefundHandler</argument>
+            <argument name="validator" xsi:type="object">Cardlink\Checkout\Gateway\Validator\ResponseValidator</argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Void Command -->
+    <virtualType name="CardlinkCheckoutVoidCommand" type="Magento\Payment\Gateway\Command\GatewayCommand">
+        <arguments>
+            <argument name="requestBuilder" xsi:type="object">Cardlink\Checkout\Gateway\Request\VoidRequestBuilder</argument>
+            <argument name="transferFactory" xsi:type="object">Cardlink\Checkout\Gateway\Http\TransferFactory</argument>
+            <argument name="client" xsi:type="object">Cardlink\Checkout\Gateway\Http\Client\TransactionClient</argument>
+            <argument name="handler" xsi:type="object">Cardlink\Checkout\Gateway\Response\VoidHandler</argument>
+            <argument name="validator" xsi:type="object">Cardlink\Checkout\Gateway\Validator\ResponseValidator</argument>
         </arguments>
     </virtualType>
 
@@ -93,6 +143,88 @@
 
     <!-- ////////////////////////////////////////////////////////// -->
 
+    <!-- Google Pay Payment Method -->
+    <virtualType name="CardlinkCheckoutGooglePayFacade" type="Magento\Payment\Model\Method\Adapter">
+        <arguments>
+            <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>
+            <argument name="infoBlockType" xsi:type="string">Cardlink\Checkout\Block\InfoGooglePay</argument>
+            <argument name="valueHandlerPool" xsi:type="object">CardlinkCheckoutGooglePayValueHandlerPool</argument>
+            <argument name="validatorPool" xsi:type="object">CardlinkCheckoutGooglePayValidatorPool</argument>
+            <argument name="commandPool" xsi:type="object">CardlinkCheckoutCommandPool</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutGooglePayValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">CardlinkCheckoutGooglePayConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutGooglePayConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">CardlinkCheckoutGooglePayConfig</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutGooglePayConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutGooglePayValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- ////////////////////////////////////////////////////////// -->
+
+    <!-- Apple Pay Payment Method -->
+    <virtualType name="CardlinkCheckoutApplePayFacade" type="Magento\Payment\Model\Method\Adapter">
+        <arguments>
+            <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsApplePay::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>
+            <argument name="infoBlockType" xsi:type="string">Cardlink\Checkout\Block\InfoApplePay</argument>
+            <argument name="valueHandlerPool" xsi:type="object">CardlinkCheckoutApplePayValueHandlerPool</argument>
+            <argument name="validatorPool" xsi:type="object">CardlinkCheckoutApplePayValidatorPool</argument>
+            <argument name="commandPool" xsi:type="object">CardlinkCheckoutCommandPool</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutApplePayValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">CardlinkCheckoutApplePayConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutApplePayConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">CardlinkCheckoutApplePayConfig</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutApplePayConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsApplePay::CODE</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="CardlinkCheckoutApplePayValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- ////////////////////////////////////////////////////////// -->
+
     <type name="Magento\Vault\Model\Ui\TokensConfigProvider">
         <arguments>
             <argument name="tokenUiComponentProviders" xsi:type="array">
@@ -123,6 +255,8 @@
             <argument name="methods" xsi:type="array">
                 <item name="cardlink_checkout" xsi:type="string">CardlinkCheckoutFacade</item>
                 <item name="cardlink_checkout_iris" xsi:type="string">CardlinkCheckoutIrisFacade</item>
+                <item name="cardlink_checkout_googlepay" xsi:type="string">CardlinkCheckoutGooglePayFacade</item>
+                <item name="cardlink_checkout_applepay" xsi:type="string">CardlinkCheckoutApplePayFacade</item>
             </argument>
         </arguments>
     </type>

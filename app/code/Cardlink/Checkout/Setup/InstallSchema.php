@@ -33,6 +33,7 @@ class InstallSchema implements InstallSchemaInterface
         $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_pay_status` VARCHAR( 16 );");
         $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_tx_id` VARCHAR( 20 );");
         $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_pay_ref` VARCHAR( 64 );");
+        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_order_id` VARCHAR( 64 );");
 
         $setup->endSetup();
     }

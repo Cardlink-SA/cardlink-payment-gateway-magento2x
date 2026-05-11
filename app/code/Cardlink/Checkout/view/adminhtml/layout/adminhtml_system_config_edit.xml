@@ -3,6 +3,7 @@
     <head>
         <script src="Cardlink_Checkout::js/require_multiple_card_fields.js"/>
         <script src="Cardlink_Checkout::js/require_multiple_iris_fields.js"/>
+        <script src="Cardlink_Checkout::js/require_multiple_googlepay_fields.js"/>
 
     </head>
     <body>

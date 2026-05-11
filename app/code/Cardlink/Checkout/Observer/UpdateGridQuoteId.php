@@ -10,7 +10,11 @@ use Magento\Sales\Api\Data\OrderInterface;
 
 class UpdateGridQuoteId implements ObserverInterface
 {
-    public function __construct(private ResourceConnection $resource) {}
+    private ResourceConnection $resource;
+
+    public function __construct(ResourceConnection $resource) {
+        $this->resource = $resource;
+    }
 
     public function execute(Observer $observer): void
     {
@@ -26,7 +30,10 @@ class UpdateGridQuoteId implements ObserverInterface
         $conn = $this->resource->getConnection();
         $sog  = $conn->getTableName('sales_order_grid');
 
-        // Upsert the quote_id into the grid row for this order
-        $conn->update($sog, ['quote_id' => $quoteId], ['entity_id = ?' => $entityId]);
+        $conn->update(
+            $sog,
+            ['quote_id' => $quoteId],
+            ['entity_id = ?' => $entityId]
+        );
     }
 }

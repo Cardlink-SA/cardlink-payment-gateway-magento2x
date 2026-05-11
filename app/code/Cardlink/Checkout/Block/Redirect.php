@@ -49,9 +49,9 @@ class Redirect extends \Magento\Framework\View\Element\Template
      */
     public function getRedirectForm($autoSubmit = true)
     {
-        $ret = '<form name="cardlink_checkout" method="post" target="_self" action="' . $this->getPaymentGatewayUrl() . '">' . PHP_EOL;
+        $ret = '<form name="cardlink_checkout" method="post" target="_self" action="' . $this->escapeHtmlAttr($this->getPaymentGatewayUrl()) . '">' . PHP_EOL;
         foreach ($this->getFormData() as $formFieldKey => $formFieldValue) {
-            $ret .= '<input type="hidden" name="' . $formFieldKey . '" value="' . $formFieldValue . '" />' . PHP_EOL;
+            $ret .= '<input type="hidden" name="' . $this->escapeHtmlAttr($formFieldKey) . '" value="' . $this->escapeHtmlAttr($formFieldValue) . '" />' . PHP_EOL;
         }
         $ret .= '</form>' . PHP_EOL;
 

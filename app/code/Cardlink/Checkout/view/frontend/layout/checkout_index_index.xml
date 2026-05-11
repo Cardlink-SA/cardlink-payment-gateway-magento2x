@@ -47,6 +47,24 @@
                                                                     </item>
                                                                 </item>
 
+                                                                <item name="cardlink_checkout_googlepay" xsi:type="array">
+                                                                    <item name="component" xsi:type="string">Cardlink_Checkout/js/view/payment/cardlink-checkout-googlepay</item>
+                                                                    <item name="methods" xsi:type="array">
+                                                                        <item name="cardlink_checkout_googlepay" xsi:type="array">
+                                                                            <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
+                                                                        </item>
+                                                                    </item>
+                                                                </item>
+
+                                                                <item name="cardlink_checkout_applepay" xsi:type="array">
+                                                                    <item name="component" xsi:type="string">Cardlink_Checkout/js/view/payment/cardlink-checkout-applepay</item>
+                                                                    <item name="methods" xsi:type="array">
+                                                                        <item name="cardlink_checkout_applepay" xsi:type="array">
+                                                                            <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
+                                                                        </item>
+                                                                    </item>
+                                                                </item>
+
                                                             </item>
                                                         </item>
                                                     </item>

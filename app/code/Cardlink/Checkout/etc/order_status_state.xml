@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Assign custom order statuses to order states for Cardlink Checkout
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Sales:etc/order_status_state.xsd">
+    <!-- Assign cardlink_authorized status to processing state -->
+    <status code="cardlink_authorized" state="processing" is_default="0" visible_on_front="1"/>
+</config>

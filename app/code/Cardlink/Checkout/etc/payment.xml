@@ -2,7 +2,7 @@
 <payment xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Payment:etc/payment.xsd">
 
     <groups>
-        <group id="online">
+        <group id="cardlink">
             <label>Cardlink Checkout Payment Method</label>
         </group>
     </groups>
@@ -13,6 +13,14 @@
         </method>
 
         <method name="cardlink_checkout_iris">
+            <allow_multiple_address>1</allow_multiple_address>
+        </method>
+
+        <method name="cardlink_checkout_googlepay">
+            <allow_multiple_address>1</allow_multiple_address>
+        </method>
+
+        <method name="cardlink_checkout_applepay">
             <allow_multiple_address>1</allow_multiple_address>
         </method>
     </methods>

@@ -11,6 +11,7 @@ use Magento\Customer\Model\SessionFactory;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
+use Magento\Sales\Model\Order\Config as OrderConfig;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -54,6 +55,38 @@ class Data extends AbstractHelper
     const XML_PATH_CONFIG_IRIS_HOLD_STOCK_ORDER = 'payment/cardlink_checkout_iris/hold_stock_order';
     const XML_PATH_CONFIG_IRIS_CANCELED_ORDER_EXPIRATION = 'payment/cardlink_checkout_iris/canceled_order_expiration';
 
+    // Google Pay configuration paths
+    const XML_PATH_CONFIG_GOOGLEPAY_ENABLED = 'payment/cardlink_checkout_googlepay/active';
+    const XML_PATH_CONFIG_GOOGLEPAY_ORDER_STATUS = 'payment/cardlink_checkout_googlepay/order_status';
+    const XML_PATH_CONFIG_GOOGLEPAY_SHORT_DESCRIPTION = 'payment/cardlink_checkout_googlepay/description';
+    const XML_PATH_CONFIG_GOOGLEPAY_BUSINESS_PARTNER = 'payment/cardlink_checkout_googlepay/business_partner';
+    const XML_PATH_CONFIG_GOOGLEPAY_TRANSACTION_ENVIRONMENT = 'payment/cardlink_checkout_googlepay/transaction_environment';
+    const XML_PATH_CONFIG_GOOGLEPAY_MERCHANT_ID = 'payment/cardlink_checkout_googlepay/merchant_id';
+    const XML_PATH_CONFIG_GOOGLEPAY_SHARED_SECRET = 'payment/cardlink_checkout_googlepay/shared_secret';
+    const XML_PATH_CONFIG_GOOGLEPAY_DISPLAY_PAYMENT_METHOD_LOGO = 'payment/cardlink_checkout_googlepay/display_payment_method_logo';
+    const XML_PATH_CONFIG_GOOGLEPAY_LOG_DEBUG_INFO = 'payment/cardlink_checkout_googlepay/log_debug_info';
+    const XML_PATH_CONFIG_GOOGLEPAY_TRANSACTION_TYPE = 'payment/cardlink_checkout_googlepay/transaction_type';
+    const XML_PATH_CONFIG_GOOGLEPAY_MPI_PRIVATE_KEY = 'payment/cardlink_checkout_googlepay/mpi_private_key';
+    const XML_PATH_CONFIG_GOOGLEPAY_CHECKOUT_IN_IFRAME = 'payment/cardlink_checkout_googlepay/checkout_in_iframe';
+
+    // Apple Pay configuration paths
+    const XML_PATH_CONFIG_APPLEPAY_ENABLED = 'payment/cardlink_checkout_applepay/active';
+    const XML_PATH_CONFIG_APPLEPAY_ORDER_STATUS = 'payment/cardlink_checkout_applepay/order_status';
+    const XML_PATH_CONFIG_APPLEPAY_SHORT_DESCRIPTION = 'payment/cardlink_checkout_applepay/description';
+    const XML_PATH_CONFIG_APPLEPAY_BUSINESS_PARTNER = 'payment/cardlink_checkout_applepay/business_partner';
+    const XML_PATH_CONFIG_APPLEPAY_TRANSACTION_ENVIRONMENT = 'payment/cardlink_checkout_applepay/transaction_environment';
+    const XML_PATH_CONFIG_APPLEPAY_MERCHANT_ID = 'payment/cardlink_checkout_applepay/merchant_id';
+    const XML_PATH_CONFIG_APPLEPAY_SHARED_SECRET = 'payment/cardlink_checkout_applepay/shared_secret';
+    const XML_PATH_CONFIG_APPLEPAY_DISPLAY_PAYMENT_METHOD_LOGO = 'payment/cardlink_checkout_applepay/display_payment_method_logo';
+    const XML_PATH_CONFIG_APPLEPAY_LOG_DEBUG_INFO = 'payment/cardlink_checkout_applepay/log_debug_info';
+    const XML_PATH_CONFIG_APPLEPAY_TRANSACTION_TYPE = 'payment/cardlink_checkout_applepay/transaction_type';
+    const XML_PATH_CONFIG_APPLEPAY_MPI_PRIVATE_KEY = 'payment/cardlink_checkout_applepay/mpi_private_key';
+    const XML_PATH_CONFIG_APPLEPAY_CHECKOUT_IN_IFRAME = 'payment/cardlink_checkout_applepay/checkout_in_iframe';
+
+    // Shared configuration paths
+    const XML_PATH_CONFIG_SHARED_PROCESSOR_CERT_TEST = 'payment/cardlink_checkout_shared/processor_certificate_test';
+    const XML_PATH_CONFIG_SHARED_PROCESSOR_CERT_PRODUCTION = 'payment/cardlink_checkout_shared/processor_certificate_production';
+
     /**
      * @var LoggerInterface
      */
@@ -85,6 +118,11 @@ class Data extends AbstractHelper
     private $assetRepo;
 
     /**
+     * @var OrderConfig
+     */
+    private $orderConfig;
+
+    /**
      * Constructor.
      * 
      * @param LoggerInterface $logger
@@ -93,6 +131,7 @@ class Data extends AbstractHelper
      * @param SerializerInterface $serializer
      * @param EncryptorInterface $encryptor
      * @param Repository $assetRepo
+     * @param OrderConfig $orderConfig
      */
     public function __construct(
         LoggerInterface $logger,
@@ -100,7 +139,8 @@ class Data extends AbstractHelper
         StoreManagerInterface $storeManager,
         SerializerInterface $serializer,
         EncryptorInterface $encryptor,
-        Repository $assetRepo
+        Repository $assetRepo,
+        OrderConfig $orderConfig
     ) {
         $this->logger = $logger;
         $this->scopeConfig = $scopeConfig;
@@ -108,6 +148,7 @@ class Data extends AbstractHelper
         $this->serializer = $serializer;
         $this->encryptor = $encryptor;
         $this->assetRepo = $assetRepo;
+        $this->orderConfig = $orderConfig;
     }
 
     /**
@@ -211,6 +252,61 @@ class Data extends AbstractHelper
         }
 
         return $config;
+    }
+
+    /**
+     * Get the order state for a given status code.
+     *
+     * Looks up what state a status belongs to and returns it.
+     * Falls back to pending_payment if status is not found.
+     *
+     * @param string $statusCode The order status code
+     * @return string The order state
+     */
+    public function getStateForStatus(string $statusCode): string
+    {
+        $statuses = $this->orderConfig->getStateStatuses([
+            \Magento\Sales\Model\Order::STATE_NEW,
+            \Magento\Sales\Model\Order::STATE_PENDING_PAYMENT,
+        ]);
+
+        // Check which state this status belongs to
+        foreach ([
+            \Magento\Sales\Model\Order::STATE_NEW,
+            \Magento\Sales\Model\Order::STATE_PENDING_PAYMENT,
+        ] as $state) {
+            $stateStatuses = $this->orderConfig->getStateStatuses([$state]);
+            if (isset($stateStatuses[$statusCode])) {
+                return $state;
+            }
+        }
+
+        // Default to pending_payment for redirect-based payments
+        return \Magento\Sales\Model\Order::STATE_PENDING_PAYMENT;
+    }
+
+    /**
+     * Get the state and status for the card payment method's configured order status.
+     *
+     * @return array ['state' => string, 'status' => string]
+     */
+    public function getNewOrderStateAndStatus(): array
+    {
+        $status = $this->getNewOrderStatus();
+        $state = $this->getStateForStatus($status);
+        return ['state' => $state, 'status' => $status];
+    }
+
+    /**
+     * Get the state and status for the IRIS payment method's configured order status.
+     *
+     * @return array ['state' => string, 'status' => string]
+     */
+    public function getIrisNewOrderStateAndStatus(): array
+    {
+        $status = $this->getIrisNewOrderStatus();
+        $state = $this->getStateForStatus($status);
+        return ['state' => $state, 'status' => $status];
     }
 
     /**
@@ -408,6 +504,46 @@ class Data extends AbstractHelper
     }
 
     /**
+     * Identifies that the Google Pay payment method should log debugging information.
+     *
+     * @return bool
+     */
+    public function googlePayLogDebugInfoEnabled()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_GOOGLEPAY_LOG_DEBUG_INFO);
+    }
+
+    /**
+     * Determines that the Google Pay 3DS authentication flow will be executed inside an IFRAME.
+     *
+     * @return bool
+     */
+    public function doGooglePayCheckoutInIframe()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_GOOGLEPAY_CHECKOUT_IN_IFRAME);
+    }
+
+    /**
+     * Identifies that the Apple Pay payment method should log debugging information.
+     *
+     * @return bool
+     */
+    public function applePayLogDebugInfoEnabled()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_APPLEPAY_LOG_DEBUG_INFO);
+    }
+
+    /**
+     * Determines that the Apple Pay 3DS authentication flow will be executed inside an IFRAME.
+     *
+     * @return bool
+     */
+    public function doApplePayCheckoutInIframe()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_APPLEPAY_CHECKOUT_IN_IFRAME);
+    }
+
+    /**
      * Returns the URL of the Cardlink logo.
      * 
      * @return string
@@ -594,5 +730,548 @@ class Data extends AbstractHelper
     {
         $config = self::getIrisCanceledOrderExpiration();
         return !!$config && intval($config) >= 10 && intval($config) <= 60;
+    }
+
+    // ======================== Google Pay Methods ========================
+
+    /**
+     * Returns whether the Google Pay payment method is enabled.
+     *
+     * @return bool
+     */
+    public function isGooglePayEnabled()
+    {
+        return (bool) self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_ENABLED);
+    }
+
+    /**
+     * Returns the configured description for Google Pay.
+     *
+     * @return string
+     */
+    public function getGooglePayDescription()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_SHORT_DESCRIPTION);
+    }
+
+    /**
+     * Returns whether the Google Pay logo should be displayed in the title.
+     *
+     * @return bool
+     */
+    public function displayGooglePayLogoInTitle()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_GOOGLEPAY_DISPLAY_PAYMENT_METHOD_LOGO);
+    }
+
+    /**
+     * Returns the URL of the Google Pay logo.
+     *
+     * @return string
+     */
+    public function getGooglePayLogoUrl()
+    {
+        return $this->assetRepo->getUrlWithParams(
+            'Cardlink_Checkout::images/googlepay.svg',
+            ['_secure' => true]
+        );
+    }
+
+    /**
+     * Returns the configured business partner for Google Pay.
+     *
+     * @return string
+     */
+    public function getGooglePayBusinessPartner()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_BUSINESS_PARTNER);
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK;
+        }
+        return $config;
+    }
+
+    /**
+     * Returns the configured transaction environment for Google Pay.
+     *
+     * @return string
+     */
+    public function getGooglePayTransactionEnvironment()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_TRANSACTION_ENVIRONMENT);
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT;
+        }
+        return $config;
+    }
+
+    /**
+     * Returns the configured merchant ID for Google Pay.
+     *
+     * @return string
+     */
+    public function getGooglePayMerchantId()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_MERCHANT_ID);
+    }
+
+    /**
+     * Returns the configured shared secret for Google Pay.
+     *
+     * @return string
+     */
+    public function getGooglePaySharedSecret()
+    {
+        return $this->encryptor->decrypt(self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_SHARED_SECRET));
+    }
+
+    /**
+     * Returns the configured MPI private key (PEM) for Google Pay 3DS v4.0 signing.
+     * Empty/null when not configured — the sign endpoint will fall back to HMAC.
+     *
+     * @return string|null
+     */
+    public function getGooglePayMpiPrivateKey()
+    {
+        $val = self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_MPI_PRIVATE_KEY);
+        return $val ? trim($val) : null;
+    }
+
+    /**
+     * Returns the Google Pay Direct Script URL based on environment and business partner.
+     *
+     * @return string
+     */
+    public function getGooglePayDirectScriptUrl()
+    {
+        $businessPartner = $this->getGooglePayBusinessPartner();
+        $environment = $this->getGooglePayTransactionEnvironment();
+
+        if ($environment == \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT) {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce.cardlink.gr/vpos/js/googlepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://www.alphaecommerce.gr/vpos/js/googlepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://vpos.eurocommerce.gr/vpos/js/googlepaydirect.js';
+            }
+        } else {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce-test.cardlink.gr/vpos/js/googlepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://alphaecommerce-test.cardlink.gr/vpos/js/googlepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://eurocommerce-test.cardlink.gr/vpos/js/googlepaydirect.js';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Returns the Google Pay VPOS Gateway URL based on environment and business partner.
+     *
+     * @return string
+     */
+    public function getGooglePayGatewayUrl()
+    {
+        $businessPartner = $this->getGooglePayBusinessPartner();
+        $environment = $this->getGooglePayTransactionEnvironment();
+
+        if ($environment == \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT) {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce.cardlink.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://www.alphaecommerce.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://vpos.eurocommerce.gr/vpos/xmlpayvpos';
+            }
+        } else {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce-test.cardlink.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://alphaecommerce-test.cardlink.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://eurocommerce-test.cardlink.gr/vpos/xmlpayvpos';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Returns the configured Google Pay order status.
+     *
+     * @return string
+     */
+    public function getGooglePayNewOrderStatus()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_ORDER_STATUS);
+        if (!$config) {
+            return \Magento\Sales\Model\Order::STATE_PENDING_PAYMENT;
+        }
+        return $config;
+    }
+
+    /**
+     * Get the state and status for Google Pay.
+     *
+     * @return array
+     */
+    public function getGooglePayNewOrderStateAndStatus(): array
+    {
+        $status = $this->getGooglePayNewOrderStatus();
+        $state = $this->getStateForStatus($status);
+        return ['state' => $state, 'status' => $status];
+    }
+
+    /**
+     * Returns the transaction type for Google Pay.
+     *
+     * @return string
+     */
+    public function getGooglePayTransactionType()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_GOOGLEPAY_TRANSACTION_TYPE);
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\TransactionTypes::TRANSACTION_TYPE_CAPTURE;
+        }
+        return $config;
+    }
+
+    /**
+     * Returns the Google Pay MPI (3D-Secure) URL based on environment and business partner.
+     *
+     * The MPI URL is the endpoint for the Merchant Plug-In server that handles
+     * 3D-Secure authentication. Pattern: {vposDomain}/mdpaympi/MerchantServer
+     *
+     * @return string
+     */
+    public function getGooglePayMpiUrl()
+    {
+        $businessPartner = $this->getGooglePayBusinessPartner();
+        $environment = $this->getGooglePayTransactionEnvironment();
+
+        if ($environment == \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT) {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce.cardlink.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://www.alphaecommerce.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://vpos.eurocommerce.gr/mdpaympi/MerchantServer';
+            }
+        } else {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce-test.cardlink.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://alphaecommerce-test.cardlink.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://eurocommerce-test.cardlink.gr/mdpaympi/MerchantServer';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Returns the Google Pay 3DS success callback URL base.
+     *
+     * @return string
+     */
+    public function getGooglePay3dsSuccessUrl()
+    {
+        return '';  // Will be set by the config provider using UrlInterface
+    }
+
+    /**
+     * Returns the Google Pay 3DS failure callback URL base.
+     *
+     * @return string
+     */
+    public function getGooglePay3dsFailureUrl()
+    {
+        return '';  // Will be set by the config provider using UrlInterface
+    }
+
+    // =====================================================================
+    //  APPLE PAY CONFIGURATION METHODS
+    // =====================================================================
+
+    /**
+     * Returns whether Apple Pay is enabled.
+     *
+     * @return bool
+     */
+    public function isApplePayEnabled()
+    {
+        return (bool) self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_ENABLED);
+    }
+
+    /**
+     * Returns the configured description for Apple Pay.
+     *
+     * @return string
+     */
+    public function getApplePayDescription()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_SHORT_DESCRIPTION);
+    }
+
+    /**
+     * Returns whether the Apple Pay logo should be displayed in the title.
+     *
+     * @return bool
+     */
+    public function displayApplePayLogoInTitle()
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_CONFIG_APPLEPAY_DISPLAY_PAYMENT_METHOD_LOGO);
+    }
+
+    /**
+     * Returns the URL of the Apple Pay logo.
+     *
+     * @return string
+     */
+    public function getApplePayLogoUrl()
+    {
+        return $this->assetRepo->getUrlWithParams(
+            'Cardlink_Checkout::images/applepay.svg',
+            ['_secure' => true]
+        );
+    }
+
+    /**
+     * Returns the configured business partner for Apple Pay.
+     *
+     * @return string
+     */
+    public function getApplePayBusinessPartner()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_BUSINESS_PARTNER);
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK;
+        }
+        return $config;
+    }
+
+    /**
+     * Returns the configured transaction environment for Apple Pay.
+     *
+     * @return string
+     */
+    public function getApplePayTransactionEnvironment()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_TRANSACTION_ENVIRONMENT);
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT;
+        }
+        return $config;
+    }
+
+    /**
+     * Returns the configured merchant ID for Apple Pay.
+     *
+     * @return string
+     */
+    public function getApplePayMerchantId()
+    {
+        return self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_MERCHANT_ID);
+    }
+
+    /**
+     * Returns the configured shared secret for Apple Pay.
+     *
+     * @return string
+     */
+    public function getApplePaySharedSecret()
+    {
+        return $this->encryptor->decrypt(self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_SHARED_SECRET));
+    }
+
+    /**
+     * Returns the configured MPI private key (PEM) for Apple Pay 3DS v4.0 signing.
+     * Empty/null when not configured — the sign endpoint will fall back to HMAC.
+     *
+     * @return string|null
+     */
+    public function getApplePayMpiPrivateKey()
+    {
+        $val = self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_MPI_PRIVATE_KEY);
+        return $val ? trim($val) : null;
+    }
+
+    /**
+     * Returns the Apple Pay Direct Script URL based on environment and business partner.
+     *
+     * @return string
+     */
+    public function getApplePayDirectScriptUrl()
+    {
+        $businessPartner = $this->getApplePayBusinessPartner();
+        $environment = $this->getApplePayTransactionEnvironment();
+
+        if ($environment == \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT) {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce.cardlink.gr/vpos/js/applepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://www.alphaecommerce.gr/vpos/js/applepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://vpos.eurocommerce.gr/vpos/js/applepaydirect.js';
+            }
+        } else {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce-test.cardlink.gr/vpos/js/applepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://alphaecommerce-test.cardlink.gr/vpos/js/applepaydirect.js';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://eurocommerce-test.cardlink.gr/vpos/js/applepaydirect.js';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Returns the Apple Pay VPOS Gateway URL based on environment and business partner.
+     *
+     * @return string
+     */
+    public function getApplePayGatewayUrl()
+    {
+        $businessPartner = $this->getApplePayBusinessPartner();
+        $environment = $this->getApplePayTransactionEnvironment();
+
+        if ($environment == \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT) {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce.cardlink.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://www.alphaecommerce.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://vpos.eurocommerce.gr/vpos/xmlpayvpos';
+            }
+        } else {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce-test.cardlink.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://alphaecommerce-test.cardlink.gr/vpos/xmlpayvpos';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://eurocommerce-test.cardlink.gr/vpos/xmlpayvpos';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Returns the configured Apple Pay order status.
+     *
+     * @return string
+     */
+    public function getApplePayNewOrderStatus()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_ORDER_STATUS);
+        if (!$config) {
+            return \Magento\Sales\Model\Order::STATE_PENDING_PAYMENT;
+        }
+        return $config;
+    }
+
+    /**
+     * Get the state and status for Apple Pay.
+     *
+     * @return array
+     */
+    public function getApplePayNewOrderStateAndStatus(): array
+    {
+        $status = $this->getApplePayNewOrderStatus();
+        $state = $this->getStateForStatus($status);
+        return ['state' => $state, 'status' => $status];
+    }
+
+    /**
+     * Returns the transaction type for Apple Pay.
+     *
+     * @return string
+     */
+    public function getApplePayTransactionType()
+    {
+        $config = self::getStoreConfigValue(self::XML_PATH_CONFIG_APPLEPAY_TRANSACTION_TYPE);
+        if (!$config) {
+            return \Cardlink\Checkout\Model\Config\Source\TransactionTypes::TRANSACTION_TYPE_CAPTURE;
+        }
+        return $config;
+    }
+
+    /**
+     * Returns the Apple Pay MPI (3D-Secure) URL based on environment and business partner.
+     *
+     * @return string
+     */
+    public function getApplePayMpiUrl()
+    {
+        $businessPartner = $this->getApplePayBusinessPartner();
+        $environment = $this->getApplePayTransactionEnvironment();
+
+        if ($environment == \Cardlink\Checkout\Model\Config\Source\TransactionEnvironments::PRODUCTION_ENVIRONMENT) {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce.cardlink.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://www.alphaecommerce.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://vpos.eurocommerce.gr/mdpaympi/MerchantServer';
+            }
+        } else {
+            switch ($businessPartner) {
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_CARDLINK:
+                    return 'https://ecommerce-test.cardlink.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_NEXI:
+                    return 'https://alphaecommerce-test.cardlink.gr/mdpaympi/MerchantServer';
+                case \Cardlink\Checkout\Model\Config\Source\BusinessPartners::BUSINESS_PARTNER_WORLDLINE:
+                    return 'https://eurocommerce-test.cardlink.gr/mdpaympi/MerchantServer';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Returns the configured processor certificate (PEM) for the test/sandbox environment.
+     *
+     * @return string|null
+     */
+    public function getProcessorCertificateTest()
+    {
+        $val = self::getStoreConfigValue(self::XML_PATH_CONFIG_SHARED_PROCESSOR_CERT_TEST);
+        return !empty($val) ? trim($val) : null;
+    }
+
+    /**
+     * Returns the configured processor certificate (PEM) for the production environment.
+     *
+     * @return string|null
+     */
+    public function getProcessorCertificateProduction()
+    {
+        $val = self::getStoreConfigValue(self::XML_PATH_CONFIG_SHARED_PROCESSOR_CERT_PRODUCTION);
+        return !empty($val) ? trim($val) : null;
+    }
+
+    /**
+     * Returns the processor certificate (PEM) for the given transaction environment.
+     *
+     * @param string $environment 'production' or 'sandbox'/'test'
+     * @return string|null
+     */
+    public function getProcessorCertificate($environment = null)
+    {
+        if ($environment === 'production') {
+            return $this->getProcessorCertificateProduction();
+        }
+        return $this->getProcessorCertificateTest();
     }
 }

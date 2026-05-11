@@ -46,7 +46,7 @@ class OrderIdentityPlugin
 
         $orderId = $this->checkoutSession->getForcedOrderId();
 
-        if ($orderId == null && ($paymentMethod == 'cardlink_checkout' || $paymentMethod == 'cardlink_checkout_iris')) {
+        if ($orderId == null && ($paymentMethod == 'cardlink_checkout' || $paymentMethod == 'cardlink_checkout_iris' || $paymentMethod == 'cardlink_checkout_googlepay')) {
             $returnValue = false;
         } else if ($orderId != null && $paymentMethod == null) {
             $order = $objectManager->create('Magento\Sales\Api\Data\OrderInterface')->load($orderId);
@@ -55,9 +55,9 @@ class OrderIdentityPlugin
                 $paymentMethodData = $order->getPayment()->getData();
                 $paymentMethod = array_key_exists('method', $paymentMethodData) ? $paymentMethodData['method'] : null;
 
-                $this->logger->error('$paymentMethod(2)=' . json_encode($paymentMethod, JSON_PRETTY_PRINT));
-                if (($paymentMethod == 'cardlink_checkout' || $paymentMethod == 'cardlink_checkout_iris')) {
-                    $this->logger->error('FORCING EMAIL SEND');
+                $this->logger->debug('Payment method detected: ' . json_encode($paymentMethod));
+                if (($paymentMethod == 'cardlink_checkout' || $paymentMethod == 'cardlink_checkout_iris' || $paymentMethod == 'cardlink_checkout_googlepay')) {
+                    $this->logger->debug('Forcing email send for Cardlink payment method');
                     $returnValue = true;
                 }
             }

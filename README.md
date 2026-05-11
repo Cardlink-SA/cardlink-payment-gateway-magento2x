@@ -9,6 +9,14 @@
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 ## Changelog
+- **1.4.0**
+  - Support direct Google Pay payments.
+  - Support direct Apple Pay payments.
+- **1.3.0**
+  - Support for background confirmations.
+  - Support secondary transactions (capture, refund, cancel) through VPOS XML API calls.
+- **1.2.5**
+  - Fixes for PHP 7.x support.
 - **1.2.4**
   - Remove requirement for IRIS customer code configuration setting. (If you already use IRIS with your own seller id, DO NOT install the new version!)
 - **1.2.3**
@@ -50,7 +58,7 @@
 - **1.0.0**
   - Initial release
 
-##  Support tickets
+## Support tickets
 
 In case that you face any technical issue during the installation process, you can contact the Cardlink e-commerce team at ecommerce_support@cardlink.gr.
 
@@ -59,7 +67,7 @@ In case that you face any technical issue during the installation process, you c
 Cardlink Payment Gateway allows you to accept payment through various schemes such as Visa, Mastercard, Maestro, American Express, Diners, Discover cards on your website, with or without variable installments.
 This module aims to offer new payment solutions to Cardlink merchants for their Magento 2.x online store without having web development knowledge. However, for the initial module installation some technical knowledge will be required.
 
-Merchants with e-shops (redirect cases only) will be able to integrate the Cardlink Payment Gateway into their checkout page using the CSS layout that they want. Also, they could choose between redirect or IFRAME option for the payment environment. Once the payment is made, the customer returns to the online store and the order is updated.
+Merchants with e-shops (redirect cases only) will be able to integrate the Cardlink Payment Gateway into their checkout page using the CSS layout that they want. They can also choose between the redirect and IFRAME options for the payment environment. Once the payment is made, the customer returns to the online store and the order is updated.
 Once you have completed the requested tests and any changes to your website, you can activate your account and start accepting payments. 
 
 ## Features
@@ -76,16 +84,125 @@ Once you have completed the requested tests and any changes to your website, you
 10. Configurable automatic cancellation of pending orders.
 11. Only send the order confirmation email to the customer after a successful payment.
 12. Support for IRIS payments for Worldline, Nexi and Cardlink acquirers.
-13.	The IFRAME feature is not supported for IRIS payments.
-14. Configurable Order creation (before or after successful payment)
+13. The IFRAME feature is not supported for IRIS payments.
+14. Configurable order creation (before or after successful payment)
+15. Support for direct Apple Pay payments (no redirect — native wallet sheet within the checkout page).
+16. Support for direct Google Pay payments (no redirect — native wallet sheet within the checkout page).
 
+## Background Confirmation Endpoint (Webhook)
+
+The module provides a background confirmation endpoint for server-to-server (S2S) notifications from the payment gateway. This endpoint processes the same payment confirmation data as the regular Response controller but returns a JSON response instead of redirecting the user.
+
+Configure this URL in the Cardlink VPOS back-office as the **background confirmation URL** for your merchant account:
+
+```
+https://<your-magento-store>/cardlink_checkout/payment/backgroundconfirmation
+```
+
+### Endpoint Details
+
+| Property | Value |
+|----------|-------|
+| **URL** | `https://<your-magento-store>/cardlink_checkout/payment/backgroundconfirmation` |
+| **Relative Path** | `/cardlink_checkout/payment/backgroundconfirmation` |
+| **HTTP Method** | `POST` |
+| **Content-Type** | `application/json` (response) |
+
+### Security
+
+The endpoint does **not** require HTTP authentication credentials, but every request is validated before processing:
+
+- The `User-Agent` header must identify the Cardlink gateway HTTP client.
+- The request must arrive over HTTPS in production (non-HTTPS is only allowed in sandbox/test mode).
+- All required fields (`Status`, `OrderId`, `Digest`, `MerchantId`) must be present.
+- The HMAC-SHA256 cryptographic signature (`Digest`) is verified against the shared secret configured for the payment method (standard card, IRIS, or Google/Apple Pay).
+- The `MerchantId` in the request must match the merchant ID in the module configuration.
+
+Requests that fail any of these checks are rejected with HTTP 400.
+
+### JSON Response Format
+
+```json
+{
+    "success": true,
+    "status": "ok",
+    "message": "Payment processed successfully",
+    "order_id": 123,
+    "order_increment_id": "000000001",
+    "order_state": "processing",
+    "order_status": "processing"
+}
+```
+
+### Response Status Values
+
+| Status | Description |
+|--------|-------------|
+| `ok` | Payment was successfully processed |
+| `processed` | Failed/canceled payment was processed |
+| `already_processed` | Order was already processed (idempotent) |
+| `error` | Invalid signature or unknown payment status |
+
+### HTTP Response Codes
+
+| Code | Description |
+|------|-------------|
+| `200` | Request processed successfully |
+| `400` | Invalid request (bad signature, missing fields, or unknown status) |
+| `500` | Internal server error |
+
+---
+
+## Apple Pay and Google Pay Direct Payments
+
+Apple Pay and Google Pay are offered as separate payment methods that complete entirely within the checkout page — the customer is **never redirected** to an external payment page.
+
+Both methods require separate **Merchant ID** and **Shared Secret** credentials issued by Cardlink specifically for wallet payments, which are configured in the respective payment method settings in `Stores > Configuration > Sales > Payment Methods`.
+
+### Payment Flow
+
+1. The customer selects Apple Pay or Google Pay on the checkout page.
+2. The storefront loads the Cardlink VPOS wallet script (authenticated via the Init endpoint below) and renders the native wallet button.
+3. The customer clicks the wallet button and authorises the payment inside the native Apple Pay or Google Pay sheet — no page navigation occurs.
+4. The encrypted/tokenised payment data is sent to the Wallet endpoint, which forwards it as a signed XML `SaleRequest` to the Cardlink VPOS.
+5. **If the VPOS requires 3D-Secure (PROCESSING status):** the frontend redirects the customer to the MPI server; after authentication the MPI posts back to the 3DS endpoint, which sends a second `SaleRequest` with the 3DS result.
+6. On `CAPTURED` or `AUTHORIZED` response the Magento order is created and the customer is sent to the order success page.
+
+### Endpoints
+
+All paths below are relative to your Magento store base URL.
+
+#### Apple Pay
+
+| Purpose | Path |
+|---------|------|
+| Script initialisation params | `/cardlink_checkout/payment/applepayinit` |
+| Merchant session validation & payment sale | `/cardlink_checkout/payment/applepaywallet` |
+| 3DS MPI callback | `/cardlink_checkout/payment/applepay3ds` |
+
+#### Google Pay
+
+| Purpose | Path |
+|---------|------|
+| Script initialisation params | `/cardlink_checkout/payment/googlepayinit` |
+| Payment sale | `/cardlink_checkout/payment/googlepaywallet` |
+| 3DS MPI callback | `/cardlink_checkout/payment/googlepay3ds` |
+
+### Comparison with Standard Card Payment
+
+| Aspect | Standard Card | Apple Pay | Google Pay |
+|--------|--------------|-----------|-----------|
+| Customer redirected to VPOS page | Yes | No | No |
+| Wallet sheet | — | Native Apple Pay | Native Google Pay |
+| 3DS handled by | VPOS internally | MPI → `applepay3ds` | MPI → `googlepay3ds` |
+| Credentials required | MID + Shared Secret | Separate wallet MID + Secret | Separate wallet MID + Secret |
 
 ## Installation
 
 You need to manually upload the contents of the .zip file of the module’s latest version to your server’s web root folder that your Magento store is installed.
 You will first need to extract the file’s contents to a temporary folder. Then, go to the ``Cardlink\Checkout\Controller\Payment`` folder.
 If you are using previous Magento version 2.2.x, replace the ``Response.php`` file with the contents of file ``Response-v2.2.php``.
-A message will be displayed during magento 2 setup commands if this file has not been replaced so the admin is aware.
+A message will be displayed during Magento 2 setup commands if this file has not been replaced, so that the administrator is aware.
 
 Depending on your hosting provider, you will probably have to be familiar with the process of transferring files using an FTP or SFTP client. If no FTP/SFTP access is provided, use your hosting provider’s administration panel to upload the folders to the folder of your Magento installation. 
 
@@ -130,7 +247,7 @@ If you are using Plesk and nginx in proxy mode, under ``Apache & nginx Setting f
 proxy_cookie_path / "/; SameSite=None; Secure";
 ```
 
-If you are only using Apache, add the following configuration lines in the ``Additional Apache directives`` section on the same page. By default, Plesk has the Apache ``mod_headers`` module installed and active however, verify that this is the case for your Plesk installation.
+If you are only using Apache, add the following configuration lines in the ``Additional Apache directives`` section on the same page. By default, Plesk has the Apache ``mod_headers`` module installed and active; however, verify that this is the case for your Plesk installation.
 
 ```
 <IfModule mod_headers.c>
@@ -141,7 +258,7 @@ Header always edit Set-Cookie ^(.*)$ $1;SameSite=None;Secure
 #### Custom or Unknown Hosting
 
 If you do not have full control of your hosting services, or not very confident with such changes, you can try installing the [Veriteworks CookieFix](https://github.com/Veriteworks/CookieFix) extension.
-Follow the instructions on the extensions Github page and set the SameSite setting to None.
+Follow the instructions on the extension's GitHub page and set the SameSite setting to None.
 
 
 If you are still unsure or unfamiliar with the actions described above, please ask a trained IT person or contact your hosting provider to do them for you.
@@ -150,17 +267,17 @@ If you are still unsure or unfamiliar with the actions described above, please a
 
 1. The Cardlink Payment Gateway settings screen used to configure the main Cardlink gateway (``Stores > Configuration > Sales > Payment Methods``).
 
-![screencapture-admin-admin-system-config-edit-section-payment](README-IMAGES/screencapture-admin-admin-system-config-edit-section-payment.png)
+![screencapture-admin-admin-system-config-edit-section-payment](README-FILES/screencapture-admin-admin-system-config-edit-section-payment.png)
 
-2. This is the front-end of Cardlink Payment Gateway plugin located in checkout page
+2. This is the front end of the Cardlink Payment Gateway plugin, located on the checkout page.
 
-![screencapture-checkout](README-IMAGES/screencapture-checkout.png)
+![screencapture-checkout](README-FILES/screencapture-checkout.png)
 
 3. To set up IRIS payments, you will need to have the Merchant ID and Shared Secret specifically issued for use with IRIS. Other settings are similar to the ones for Card Payments.
 
-![screen-capture-admin-system-iris-configuration](README-IMAGES/screen-capture-admin-system-iris-configuration.png)
+![screen-capture-admin-system-iris-configuration](README-FILES/screen-capture-admin-system-iris-configuration.png)
 
-4. To create orders (and thus hold stock) before successful payment set the option to Yes. Setting the option to No will create the order after successful payment. Forgotten or Pending order payment requests are being automatically cancelled after the expiration time.
+4. To create orders (and thus hold stock) before successful payment, set the option to Yes. Setting the option to No will create the order after successful payment. Forgotten or pending order payment requests are automatically cancelled after the expiration time.
 
-![screen-capture-create-order-cancel-order](README-IMAGES/screen-capture-create-order-cancel-order.png)
+![screen-capture-create-order-cancel-order](README-FILES/screen-capture-create-order-cancel-order.png)
 

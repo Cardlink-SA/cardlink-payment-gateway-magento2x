@@ -66,7 +66,7 @@ class SendMailOnOrderSuccess implements ObserverInterface
 
             $paymentMethod = $order->getPayment()->getMethod();
 
-            if ($paymentMethod == 'cardlink_checkout' || $paymentMethod == 'cardlink_checkout_iris') {
+            if ($paymentMethod == 'cardlink_checkout' || $paymentMethod == 'cardlink_checkout_iris' || $paymentMethod == 'cardlink_checkout_googlepay') {
                 try {
                     $this->orderSender->send($order, true);
                 } catch (\Exception $e) {

@@ -20,6 +20,7 @@ use Magento\Framework\Registry;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteManagement;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 /**
  * Redirects the customer to the payment gateway for completing payment.
@@ -42,6 +43,7 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
     private $payment_method_selected;
     private $orderLookup;
     private $registry;
+    private $orderRepository;
 
     /**
      * Constructor
@@ -54,6 +56,9 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
      * @param Payment $paymentHelper
      * @param CartRepositoryInterface $quoteRepository
      * @param QuoteManagement $quoteManagement
+     * @param OrderLookup $orderLookup
+     * @param Registry $registry
+     * @param OrderRepositoryInterface $orderRepository
      */
     public function __construct(
         Context $context,
@@ -65,7 +70,8 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
         CartRepositoryInterface $quoteRepository,
         QuoteManagement $quoteManagement,
         OrderLookup $orderLookup,
-        Registry $registry
+        Registry $registry,
+        OrderRepositoryInterface $orderRepository
     ) {
         $this->checkoutSession = $checkoutSession;
         $this->coreSession = $coreSession;
@@ -75,7 +81,8 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
         $this->quoteRepository = $quoteRepository;
         $this->quoteManagement = $quoteManagement;
         $this->orderLookup = $orderLookup;
-        $this->registry        = $registry;
+        $this->registry = $registry;
+        $this->orderRepository = $orderRepository;
 
         parent::__construct($context);
     }
@@ -182,6 +189,7 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
         if ($this->isMagentoVersionBelow('2.3.0')) {
             $orderId = $this->quoteManagement->placeOrder((int)$quote->getId());
             $order   = $this->paymentHelper->getOrderById($orderId);
+            $this->setInitialOrderStateAndStatus($order);
             return $this->paymentHelper->getFormDataForOrder($order);
         }
 
@@ -225,7 +233,47 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
             }
         }
 
+        // Set the correct order state and status based on configured order_status
+        // This ensures the state matches what the configured status belongs to
+        $this->setInitialOrderStateAndStatus($order);
+
         return $this->paymentHelper->getFormDataForOrder($order);
+    }
+
+    /**
+     * Set the initial order state and status based on payment method configuration.
+     *
+     * Ensures the order state matches the state that the configured status belongs to,
+     * supporting statuses from both "new" and "pending_payment" states.
+     *
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
+     * @return void
+     */
+    private function setInitialOrderStateAndStatus($order): void
+    {
+        $paymentMethod = $order->getPayment()->getMethod();
+        
+        if ($paymentMethod === \Cardlink\Checkout\Model\Config\SettingsIris::CODE) {
+            $stateStatus = $this->dataHelper->getIrisNewOrderStateAndStatus();
+        } elseif ($paymentMethod === \Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE) {
+            $stateStatus = $this->dataHelper->getGooglePayNewOrderStateAndStatus();
+        } else {
+            $stateStatus = $this->dataHelper->getNewOrderStateAndStatus();
+        }
+
+        $state = $stateStatus['state'];
+        $status = $stateStatus['status'];
+
+        // Only update if different from current
+        if ($order->getState() !== $state || $order->getStatus() !== $status) {
+            $order->setState($state);
+            $order->setStatus($status);
+            $this->orderRepository->save($order);
+            
+            if ($this->dataHelper->logDebugInfoEnabled()) {
+                $this->logger->debug("Set order {$order->getIncrementId()} to state={$state}, status={$status}");
+            }
+        }
     }
 
     /**
@@ -283,6 +331,13 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
     {
         $method = $this->payment_method_selected;
         $code = \Cardlink\Checkout\Model\Config\SettingsIris::CODE;
+        return ($method === $code);
+    }
+
+    private function isGooglePaySelected(): bool
+    {
+        $method = $this->payment_method_selected;
+        $code = \Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE;
         return ($method === $code);
     }
 

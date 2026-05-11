@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Custom order statuses for Cardlink Checkout
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Sales:etc/order_status.xsd">
+    <!-- Define custom status for preauthorized payments -->
+    <status code="cardlink_authorized" label="Authorized - Pending Capture"/>
+</config>

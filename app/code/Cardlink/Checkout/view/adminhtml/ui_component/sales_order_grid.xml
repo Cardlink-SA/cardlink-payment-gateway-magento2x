@@ -3,7 +3,6 @@
          xsi:noNamespaceSchemaLocation="urn:magento:framework:Ui/etc/ui_configuration.xsd"
          name="sales_order_grid">
 
-    <!-- Ensure Magento knows how to map and filter -->
     <dataSource name="sales_order_grid_data_source">
         <argument name="dataProvider" xsi:type="configurableObject">
             <argument name="name" xsi:type="string">sales_order_grid_data_source</argument>
@@ -16,7 +15,6 @@
         </argument>
     </dataSource>
 
-    <!-- Add the column -->
     <columns name="sales_order_columns">
         <column name="quote_id" class="Magento\Ui\Component\Listing\Columns\Column" sortOrder="35">
             <argument name="data" xsi:type="array">
