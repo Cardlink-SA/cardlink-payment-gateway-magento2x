@@ -9,9 +9,6 @@
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 ## Changelog
-- **1.4.0**
-  - Support direct Google Pay payments.
-  - Support direct Apple Pay payments.
 - **1.3.0**
   - Support for background confirmations.
   - Support secondary transactions (capture, refund, cancel) through VPOS XML API calls.
@@ -85,9 +82,8 @@ Once you have completed the requested tests and any changes to your website, you
 11. Only send the order confirmation email to the customer after a successful payment.
 12. Support for IRIS payments for Worldline, Nexi and Cardlink acquirers.
 13. The IFRAME feature is not supported for IRIS payments.
-14. Configurable order creation (before or after successful payment)
-15. Support for direct Apple Pay payments (no redirect — native wallet sheet within the checkout page).
-16. Support for direct Google Pay payments (no redirect — native wallet sheet within the checkout page).
+14. Configurable order creation (before or after successful payment).
+
 
 ## Background Confirmation Endpoint (Webhook)
 
@@ -115,7 +111,7 @@ The endpoint does **not** require HTTP authentication credentials, but every req
 - The `User-Agent` header must identify the Cardlink gateway HTTP client.
 - The request must arrive over HTTPS in production (non-HTTPS is only allowed in sandbox/test mode).
 - All required fields (`Status`, `OrderId`, `Digest`, `MerchantId`) must be present.
-- The HMAC-SHA256 cryptographic signature (`Digest`) is verified against the shared secret configured for the payment method (standard card, IRIS, or Google/Apple Pay).
+- The HMAC-SHA256 cryptographic signature (`Digest`) is verified against the shared secret configured for the payment method (standard card, IRIS).
 - The `MerchantId` in the request must match the merchant ID in the module configuration.
 
 Requests that fail any of these checks are rejected with HTTP 400.
@@ -150,52 +146,6 @@ Requests that fail any of these checks are rejected with HTTP 400.
 | `200` | Request processed successfully |
 | `400` | Invalid request (bad signature, missing fields, or unknown status) |
 | `500` | Internal server error |
-
----
-
-## Apple Pay and Google Pay Direct Payments
-
-Apple Pay and Google Pay are offered as separate payment methods that complete entirely within the checkout page — the customer is **never redirected** to an external payment page.
-
-Both methods require separate **Merchant ID** and **Shared Secret** credentials issued by Cardlink specifically for wallet payments, which are configured in the respective payment method settings in `Stores > Configuration > Sales > Payment Methods`.
-
-### Payment Flow
-
-1. The customer selects Apple Pay or Google Pay on the checkout page.
-2. The storefront loads the Cardlink VPOS wallet script (authenticated via the Init endpoint below) and renders the native wallet button.
-3. The customer clicks the wallet button and authorises the payment inside the native Apple Pay or Google Pay sheet — no page navigation occurs.
-4. The encrypted/tokenised payment data is sent to the Wallet endpoint, which forwards it as a signed XML `SaleRequest` to the Cardlink VPOS.
-5. **If the VPOS requires 3D-Secure (PROCESSING status):** the frontend redirects the customer to the MPI server; after authentication the MPI posts back to the 3DS endpoint, which sends a second `SaleRequest` with the 3DS result.
-6. On `CAPTURED` or `AUTHORIZED` response the Magento order is created and the customer is sent to the order success page.
-
-### Endpoints
-
-All paths below are relative to your Magento store base URL.
-
-#### Apple Pay
-
-| Purpose | Path |
-|---------|------|
-| Script initialisation params | `/cardlink_checkout/payment/applepayinit` |
-| Merchant session validation & payment sale | `/cardlink_checkout/payment/applepaywallet` |
-| 3DS MPI callback | `/cardlink_checkout/payment/applepay3ds` |
-
-#### Google Pay
-
-| Purpose | Path |
-|---------|------|
-| Script initialisation params | `/cardlink_checkout/payment/googlepayinit` |
-| Payment sale | `/cardlink_checkout/payment/googlepaywallet` |
-| 3DS MPI callback | `/cardlink_checkout/payment/googlepay3ds` |
-
-### Comparison with Standard Card Payment
-
-| Aspect | Standard Card | Apple Pay | Google Pay |
-|--------|--------------|-----------|-----------|
-| Customer redirected to VPOS page | Yes | No | No |
-| Wallet sheet | — | Native Apple Pay | Native Google Pay |
-| 3DS handled by | VPOS internally | MPI → `applepay3ds` | MPI → `googlepay3ds` |
-| Credentials required | MID + Shared Secret | Separate wallet MID + Secret | Separate wallet MID + Secret |
 
 ## Installation
 
