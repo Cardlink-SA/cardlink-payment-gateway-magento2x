@@ -80,11 +80,6 @@
                 <hold_stock_order>1</hold_stock_order>
             </cardlink_checkout_iris>
 
-            <cardlink_checkout_shared>
-                <processor_certificate_test></processor_certificate_test>
-                <processor_certificate_production></processor_certificate_production>
-            </cardlink_checkout_shared>
-
         </payment>
     </default>
 </config>
