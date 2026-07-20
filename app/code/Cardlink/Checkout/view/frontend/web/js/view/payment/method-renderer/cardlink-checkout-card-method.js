@@ -30,7 +30,7 @@ define(
                 cardlinkStoredToken: 1,
                 cardlinkInstallments: 1,
                 enabledStoredTokens: 0,
-                storedTokens: window.checkoutConfig.payment.cardlink_checkout.storedTokens,
+                storedTokens: (window.checkoutConfig.payment.cardlink_checkout || {}).storedTokens || [],
             },
 
             initObservable: function () {

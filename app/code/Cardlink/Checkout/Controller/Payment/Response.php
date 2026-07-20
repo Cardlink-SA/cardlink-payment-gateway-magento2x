@@ -339,6 +339,9 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
 
         $this->logger->info("Loaded quote {$quote->getId()} (reserved order ID: {$quote->getReservedOrderId()})");
 
+        // Ensure guest settings are properly configured before order creation
+        $this->ensureQuoteIsReady($quote);
+
         // Ensure we don't reuse a previously reserved order ID
         if ($quote->getReservedOrderId()) {
             $this->logger->warning("Quote {$quote->getId()} already had reserved order ID {$quote->getReservedOrderId()}, resetting.");
@@ -665,5 +668,55 @@ class Response extends Action implements CsrfAwareActionInterface, HttpPostActio
         $responseMerchantId = $responseData[ApiFields::MerchantId] ?? '';
         $googlePayMerchantId = $this->dataHelper->getGooglePayMerchantId();
         return $responseMerchantId && $googlePayMerchantId && $responseMerchantId === $googlePayMerchantId;
+    }
+
+    /**
+     * Ensure quote is ready for order submission by setting required guest fields.
+     *
+     * @param \Magento\Quote\Model\Quote $quote
+     * @return void
+     */
+    private function ensureQuoteIsReady(\Magento\Quote\Model\Quote $quote): void
+    {
+        // Resolve customer email (existing quote value, then billing, then shipping).
+        $email = $quote->getCustomerEmail();
+        if (!$email) {
+            $billingAddress = $quote->getBillingAddress();
+            if ($billingAddress && $billingAddress->getEmail()) {
+                $email = $billingAddress->getEmail();
+            } else {
+                $shippingAddress = $quote->getShippingAddress();
+                if ($shippingAddress && $shippingAddress->getEmail()) {
+                    $email = $shippingAddress->getEmail();
+                }
+            }
+        }
+
+        // For a quote without a logged-in customer, force a clean guest checkout.
+        // Without the is-guest flag and NOT_LOGGED_IN group, QuoteManagement::submit()
+        // runs CustomerManagement::populateCustomerInfo() and tries to create a Customer
+        // account from the quote's empty customer data object, failing with
+        // "The customer email is missing."
+        if (!$quote->getCustomerId()) {
+            $quote->setCheckoutMethod('guest');
+            $quote->setCustomerIsGuest(true);
+            $quote->setCustomerGroupId(\Magento\Customer\Model\Group::NOT_LOGGED_IN_ID);
+
+            if ($email) {
+                $quote->setCustomerEmail($email);
+                $customer = $quote->getCustomer();
+                if ($customer) {
+                    $customer->setEmail($email);
+                    $customer->setGroupId(\Magento\Customer\Model\Group::NOT_LOGGED_IN_ID);
+                    $quote->setCustomer($customer);
+                }
+                if ($this->dataHelper->logDebugInfoEnabled()) {
+                    $this->logger->debug("Set guest customer email to {$email} for quote {$quote->getId()}");
+                }
+            } else {
+                $this->logger->warning("Unable to determine customer email for quote {$quote->getId()}");
+            }
+        }
+        $quote->save();
     }
 }

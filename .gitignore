@@ -1,4 +1,6 @@
 
-/doc
+README.pdf
 *.bak
 *.zip
+node_modules/
+var/

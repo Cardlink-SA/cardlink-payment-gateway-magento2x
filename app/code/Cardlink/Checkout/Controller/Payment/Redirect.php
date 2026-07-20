@@ -105,12 +105,12 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
             $this->logger->debug($isCreateOrderEnabled ? "Order creation selected." : "Quote selected.");
         }
 
-        // Validate quote
-        if (!$quote->getId()) {
-            throw new LocalizedException(__('Unable to process your order.'));
-        }
-
         try {
+            // Validate quote
+            if (!$quote->getId()) {
+                throw new LocalizedException(__('Unable to process your order.'));
+            }
+
             $this->prepareQuote($quote);
 
             $formData = $isCreateOrderEnabled
@@ -136,13 +136,102 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
     {
         $quote->getShippingAddress()->setCollectShippingRates(true);
 
-        if (!$quote->getCheckoutMethod()) {
+        // Resolve the customer email (form / session / addresses).
+        $email = $quote->getCustomerEmail() ?: $this->getEmailFromCheckout($quote);
+
+        // For a quote without a logged-in customer, force a clean guest checkout.
+        // Without the is-guest flag and NOT_LOGGED_IN group, QuoteManagement::submit()
+        // runs the customer-account path and tries to save a Customer entity built from
+        // the quote's (empty) customer data object, failing with "customer email is missing".
+        if (!$quote->getCustomerId()) {
             $quote->setCheckoutMethod(self::METHOD_GUEST);
+            $quote->setCustomerIsGuest(true);
+            $quote->setCustomerGroupId(\Magento\Customer\Model\Group::NOT_LOGGED_IN_ID);
+
+            if ($email) {
+                $quote->setCustomerEmail($email);
+                // Keep the customer data object in sync so the guest order is built correctly.
+                $customer = $quote->getCustomer();
+                if ($customer) {
+                    $customer->setEmail($email);
+                    $customer->setGroupId(\Magento\Customer\Model\Group::NOT_LOGGED_IN_ID);
+                    $quote->setCustomer($customer);
+                }
+                if ($this->dataHelper->logDebugInfoEnabled()) {
+                    $this->logger->debug("Set guest customer email to {$email} for quote {$quote->getId()}");
+                }
+            } else {
+                $this->logger->warning("Unable to determine customer email for quote {$quote->getId()}");
+            }
         }
-        if (!$quote->getCustomerEmail()) {
-            $quote->setCustomerEmail($quote->getBillingAddress()->getEmail());
+
+        try {
+            $quote->save();
+        } catch (\Exception $e) {
+            $this->logger->warning("Quote save failed during prepareQuote, but continuing: " . $e->getMessage());
         }
-        $quote->save();
+    }
+
+    /**
+     * Get customer email from checkout form or address
+     *
+     * @param Quote $quote
+     * @return string|null
+     */
+    private function getEmailFromCheckout(Quote $quote): ?string
+    {
+        $email = null;
+
+        // First: try checkout session (where Magento stores guest email)
+        if ($this->checkoutSession->hasQuote()) {
+            $sessionQuote = $this->checkoutSession->getQuote();
+            $email = $sessionQuote->getCustomerEmail();
+            if ($email && $this->dataHelper->logDebugInfoEnabled()) {
+                $this->logger->debug('[getEmailFromCheckout] Got email from session quote: ' . $email);
+            }
+        }
+
+        // Second: try billing/shipping addresses on the current quote
+        if (!$email) {
+            $billingAddress = $quote->getBillingAddress();
+            if ($billingAddress && $billingAddress->getEmail()) {
+                $email = $billingAddress->getEmail();
+                if ($this->dataHelper->logDebugInfoEnabled()) {
+                    $this->logger->debug('[getEmailFromCheckout] Got email from billing address: ' . $email);
+                }
+            } elseif ($quote->getShippingAddress() && $quote->getShippingAddress()->getEmail()) {
+                $email = $quote->getShippingAddress()->getEmail();
+                if ($this->dataHelper->logDebugInfoEnabled()) {
+                    $this->logger->debug('[getEmailFromCheckout] Got email from shipping address: ' . $email);
+                }
+            }
+        }
+
+        // Third: try request POST (checkout form submission)
+        if (!$email) {
+            $request = $this->getRequest();
+            $email = $request->getPost('customer_email') ?? $request->getPost('email');
+
+            if (!$email && $request->getPost('shippingAddress')) {
+                $shippingData = $request->getPost('shippingAddress');
+                $email = $shippingData['email'] ?? null;
+            }
+
+            if (!$email && $request->getPost('billingAddress')) {
+                $billingData = $request->getPost('billingAddress');
+                $email = $billingData['email'] ?? null;
+            }
+
+            if ($email && $this->dataHelper->logDebugInfoEnabled()) {
+                $this->logger->debug('[getEmailFromCheckout] Got email from request POST: ' . $email);
+            }
+        }
+
+        if ($this->dataHelper->logDebugInfoEnabled()) {
+            $this->logger->debug('[getEmailFromCheckout] Quote ID: ' . $quote->getId() . ', Final email: ' . ($email ?: 'NOT FOUND'));
+        }
+
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
     }
 
     /**
@@ -212,9 +301,13 @@ class Redirect extends Action implements \Magento\Framework\App\PageCache\NotCac
             $addr->setCollectShippingRates(true);
         }
 
+        // Re-apply guest settings after reload to ensure email, checkout method and
+        // guest flags are set correctly before the quote is converted to an order.
+        $this->prepareQuote($quote);
+
         try {
             $quote->collectTotals();
-            //$this->quoteRepository->save($quote);
+            $this->quoteRepository->save($quote);
         } catch (\Throwable $e) {
             $this->logger->error('[quote prepare] ' . $e->getMessage(), ['exception' => $e]);
             throw new LocalizedException(__('Unable to process your order at this time.'));

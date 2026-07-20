@@ -6,7 +6,8 @@ define(
     function (Component, rendererList) {
         'use strict';
 
-        const isIrisEnabled = window.checkoutConfig.payment.cardlink_checkout_iris.enable;
+        var irisConfig = window.checkoutConfig.payment.cardlink_checkout_iris;
+        const isIrisEnabled = irisConfig && irisConfig.enable;
 
         if (isIrisEnabled) {
             rendererList.push(

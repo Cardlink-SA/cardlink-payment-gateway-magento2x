@@ -9,6 +9,8 @@
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 ## Changelog
+- **1.3.2**
+  - Fix bug with guest checkout under Magento 2.3.7.
 - **1.3.1**
   - Fix bug with activation under Magento 2.3.7.
 - **1.3.0**

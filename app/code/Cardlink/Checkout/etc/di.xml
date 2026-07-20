@@ -19,7 +19,7 @@
 
     <!-- ////////////////////////////////////////////////////////// -->
 
-    <virtualType name="CardlinkCheckoutFacade" type="Magento\Payment\Model\Method\Adapter">
+    <virtualType name="CardlinkCheckoutFacade" type="Cardlink\Checkout\Model\Method\Adapter">
         <arguments>
             <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\Settings::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>
@@ -104,7 +104,7 @@
 
     <!-- ////////////////////////////////////////////////////////// -->
 
-    <virtualType name="CardlinkCheckoutIrisFacade" type="Magento\Payment\Model\Method\Adapter">
+    <virtualType name="CardlinkCheckoutIrisFacade" type="Cardlink\Checkout\Model\Method\Adapter">
         <arguments>
             <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsIris::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>
@@ -144,7 +144,7 @@
     <!-- ////////////////////////////////////////////////////////// -->
 
     <!-- Google Pay Payment Method -->
-    <virtualType name="CardlinkCheckoutGooglePayFacade" type="Magento\Payment\Model\Method\Adapter">
+    <virtualType name="CardlinkCheckoutGooglePayFacade" type="Cardlink\Checkout\Model\Method\Adapter">
         <arguments>
             <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsGooglePay::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>
@@ -185,7 +185,7 @@
     <!-- ////////////////////////////////////////////////////////// -->
 
     <!-- Apple Pay Payment Method -->
-    <virtualType name="CardlinkCheckoutApplePayFacade" type="Magento\Payment\Model\Method\Adapter">
+    <virtualType name="CardlinkCheckoutApplePayFacade" type="Cardlink\Checkout\Model\Method\Adapter">
         <arguments>
             <argument name="code" xsi:type="const">Cardlink\Checkout\Model\Config\SettingsApplePay::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Cardlink\Checkout\Block\Form\Payment</argument>

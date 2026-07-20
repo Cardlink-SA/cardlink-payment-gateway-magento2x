@@ -6,7 +6,8 @@ define(
     function (Component, rendererList) {
         'use strict';
 
-        const isCardEnabled = window.checkoutConfig.payment.cardlink_checkout.enable;
+        var cardConfig = window.checkoutConfig.payment.cardlink_checkout;
+        const isCardEnabled = cardConfig && cardConfig.enable;
 
         if (isCardEnabled) {
             rendererList.push(
