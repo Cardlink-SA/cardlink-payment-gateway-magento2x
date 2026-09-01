@@ -9,7 +9,13 @@ use Magento\Framework\Setup\SchemaSetupInterface;
 
 /**
  * Database schema installation script.
- * 
+ *
+ * Kept for Magento versions without schema patch support. On every other version the
+ * same columns are added by Setup\Patch\Schema\AddCardlinkPaymentColumns, which also
+ * covers stores that were installed before a column was introduced. Both entry points
+ * share the definitions in CardlinkColumns and skip columns that already exist, so
+ * running one after the other is safe.
+ *
  * @author Cardlink S.A.
  * @codeCoverageIgnore
  */
@@ -17,23 +23,12 @@ class InstallSchema implements InstallSchemaInterface
 {
     /**
      * {@inheritdoc}
-     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
     public function install(SchemaSetupInterface $setup, ModuleContextInterface $context)
     {
-        $setup->run("ALTER TABLE `{$setup->getTable('quote_payment')}` ADD `cardlink_tokenize_card` SMALLINT( 1 ) NOT NULL;");
-        $setup->run("ALTER TABLE `{$setup->getTable('quote_payment')}` ADD `cardlink_stored_token` INT( 10 ) NOT NULL;");
-        $setup->run("ALTER TABLE `{$setup->getTable('quote_payment')}` ADD `cardlink_installments` SMALLINT( 5 ) NOT NULL;");
+        $setup->startSetup();
 
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_tokenize_card` SMALLINT( 1 ) NOT NULL;");
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_stored_token` INT( 10 ) NOT NULL;");
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_installments` SMALLINT( 5 ) NOT NULL;");
-
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_pay_method` VARCHAR( 20 );");
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_pay_status` VARCHAR( 16 );");
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_tx_id` VARCHAR( 20 );");
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_pay_ref` VARCHAR( 64 );");
-        $setup->run("ALTER TABLE `{$setup->getTable('sales_order_payment')}` ADD `cardlink_order_id` VARCHAR( 64 );");
+        CardlinkColumns::addMissing($setup);
 
         $setup->endSetup();
     }

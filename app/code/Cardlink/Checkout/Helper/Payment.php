@@ -5,6 +5,7 @@ namespace Cardlink\Checkout\Helper;
 use Cardlink\Checkout\Logger\Logger;
 use Cardlink\Checkout\Model\ApiFields;
 use Cardlink\Checkout\Model\PaymentStatus;
+use Cardlink\Checkout\Service\GatewayOrderId;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Checkout\Model\Session;
@@ -116,6 +117,11 @@ class Payment extends AbstractHelper
     protected $quoteResource;
 
     /**
+     * @var GatewayOrderId
+     */
+    protected $gatewayOrderId;
+
+    /**
      * Constructor.
      *
      * @param Logger $logger
@@ -134,6 +140,7 @@ class Payment extends AbstractHelper
      * @param BuilderInterface $transactionBuilder
      * @param QuoteFactory $quoteFactory
      * @param QuoteResource $quoteResource
+     * @param GatewayOrderId $gatewayOrderId
      */
     public function __construct(
         Logger $logger,
@@ -152,7 +159,8 @@ class Payment extends AbstractHelper
         ManagerInterface $messageManager,
         BuilderInterface $transactionBuilder,
         QuoteFactory $quoteFactory,
-        QuoteResource $quoteResource
+        QuoteResource $quoteResource,
+        GatewayOrderId $gatewayOrderId
     ) {
         $this->logger = $logger;
         $this->scopeConfig = $scopeConfig;
@@ -171,6 +179,18 @@ class Payment extends AbstractHelper
         $this->transactionBuilder = $transactionBuilder;
         $this->quoteFactory = $quoteFactory;
         $this->quoteResource = $quoteResource;
+        $this->gatewayOrderId = $gatewayOrderId;
+    }
+
+    /**
+     * Resolve the Magento entity referenced by an orderid received from the gateway.
+     *
+     * @param string $gatewayOrderId
+     * @return array{quote_id: int|null, increment_id: string}
+     */
+    public function parseGatewayOrderId($gatewayOrderId)
+    {
+        return $this->gatewayOrderId->parse((string) $gatewayOrderId);
     }
 
     /**
@@ -322,8 +342,11 @@ class Payment extends AbstractHelper
 
         $paymentMethodCode = $checkoutSession->getQuote()->getPayment()->getMethod();
 
+        // Only the entity part is built here; buildFormData() appends the random suffix.
+        // Appending one here as well produced a double-suffixed orderid that no longer
+        // mapped back to the quote when the gateway response came in.
         return $this->buildFormData(
-            'QUOTEx' . $quoteId . 'x' . self::incrementalHash(ApiFields::OrderId_SuffixLength - 1),
+            $this->gatewayOrderId->forQuote($quoteId),
             floatval($quote->getGrandTotal()),
             $quote->getQuoteCurrencyCode(),
             $quote->getStore()->getCode(),
@@ -917,7 +940,7 @@ class Payment extends AbstractHelper
         if ($order->getId()) {
             $quote = $this->getQuoteById($order->getQuoteId());
 
-            if ($quote->getId()) {
+            if ($quote && $quote->getId()) {
                 $quote->setIsActive(1)->setReservedOrderId(null)->save();
                 $this->checkoutSession->replaceQuote($quote);
 
@@ -978,11 +1001,26 @@ class Payment extends AbstractHelper
      * Return sales quote instance for specified ID
      *
      * @param int $quoteId Quote identifier
-     * @return Mage_Sales_Model_Quote
+     * @return Quote|null The quote if it exists, null otherwise.
      */
     public function getQuoteById($quoteId)
     {
-        return $this->quoteRepository->get($quoteId);
+        if (!$quoteId) {
+            return null;
+        }
+
+        try {
+            return $this->quoteRepository->get($quoteId);
+        } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+            // The repository throws when the quote is gone. Callers all treat a missing
+            // quote as a normal outcome, so do not let it escape as a fatal error while
+            // a payment gateway response is being processed.
+            if ($this->dataHelper->logDebugInfoEnabled()) {
+                $this->logger->debug("No quote found for ID {$quoteId}.");
+            }
+
+            return null;
+        }
     }
 
     /**

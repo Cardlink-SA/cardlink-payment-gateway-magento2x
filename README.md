@@ -9,6 +9,11 @@
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 ## Changelog
+- **1.3.3**
+  - Fix exception on the payment response page when "Create order and hold stock" is set to No. The order ID sent to the gateway carried its random suffix twice, so the response no longer resolved back to the quote and no order was created.
+  - Fix "Original transaction is not found" (error code O2) on capture, refund and void. Stores upgraded from an earlier version never received the `cardlink_order_id` column, so the gateway transaction reference was lost on save. The column is now added on `bin/magento setup:upgrade`, and existing orders fall back to the reference recorded with the payment transaction.
+  - Prevent a replayed gateway response or background confirmation from placing a second order for the same quote.
+  - Silence the "Implicitly marking parameter as nullable is deprecated" notices raised by the payment method adapter under PHP 8.4.
 - **1.3.2**
   - Fix bug with guest checkout under Magento 2.3.7.
 - **1.3.1**

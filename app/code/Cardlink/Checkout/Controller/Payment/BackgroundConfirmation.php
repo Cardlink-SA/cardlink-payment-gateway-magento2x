@@ -7,6 +7,7 @@ use Cardlink\Checkout\Model\ApiFields;
 use Cardlink\Checkout\Model\PaymentStatus;
 use Cardlink\Checkout\Helper\Data;
 use Cardlink\Checkout\Helper\Payment;
+use Cardlink\Checkout\Service\OrderLookup;
 use Exception;
 use Magento\Framework\App\CsrfAwareActionInterface;
 use Magento\Framework\App\Action\Action;
@@ -74,6 +75,9 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
     /** @var OrderRepositoryInterface */
     protected $orderRepository;
 
+    /** @var OrderLookup */
+    private $orderLookup;
+
     /**
      * Webhook constructor.
      *
@@ -85,6 +89,7 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
      * @param QuoteFactory $quoteFactory
      * @param QuoteManagement $quoteManagement
      * @param OrderRepositoryInterface $orderRepository
+     * @param OrderLookup $orderLookup
      */
     public function __construct(
         Context $context,
@@ -94,7 +99,8 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
         OrderFactory $orderFactory,
         QuoteFactory $quoteFactory,
         QuoteManagement $quoteManagement,
-        OrderRepositoryInterface $orderRepository
+        OrderRepositoryInterface $orderRepository,
+        OrderLookup $orderLookup
     ) {
         $this->logger = $logger;
         $this->dataHelper = $dataHelper;
@@ -103,6 +109,7 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
         $this->quoteFactory = $quoteFactory;
         $this->quoteManagement = $quoteManagement;
         $this->orderRepository = $orderRepository;
+        $this->orderLookup = $orderLookup;
 
         parent::__construct($context);
     }
@@ -427,28 +434,34 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
     {
         $orderIdStr = $responseData[ApiFields::OrderId];
         $message = $responseData[ApiFields::Message] ?? '';
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
+        $parsed = $this->paymentHelper->parseGatewayOrderId($orderIdStr);
+        $orderId = $parsed['increment_id'];
 
-        // Attempt to load the order by its increment ID
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
+        // Attempt to load the order by its increment ID. With "Create order and hold
+        // stock" disabled there is none yet, and the orderid encodes the quote instead.
+        $order = $orderId !== '' ? $this->paymentHelper->getOrderByIncrementId($orderId) : null;
 
         if ($order && $order->getId()) {
-            $quoteId = $order->getQuoteId();
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $quoteFactory = $objectManager->get(\Magento\Quote\Model\QuoteFactory::class);
-            $quote = $quoteFactory->create()->load($quoteId);
+            $quote = $this->quoteFactory->create()->load($order->getQuoteId());
 
             $this->paymentHelper->markSuccessfulPayment($order, $responseData);
         } else {
             // If no order is found, treat it as a quote
-            $quote = $this->paymentHelper->getQuoteById($orderId);
+            $quote = $this->paymentHelper->getQuoteById($parsed['quote_id']);
             if ($quote && $quote->getIsActive() && $quote->getId()) {
                 $order = $this->createOrderFromQuote($quote->getId());
+                $orderId = $order->getIncrementId();
                 $this->paymentHelper->markSuccessfulPayment($order, $responseData);
+            } else {
+                $this->logger->error(
+                    'Webhook: no order and no active quote found for gateway order ID ' . $orderIdStr
+                );
             }
         }
 
-        if (isset($order) && isset($quote)) {
+        // Guard on the quote ID as well: saving a quote that failed to load would insert
+        // an empty one instead of deactivating the customer's cart.
+        if (isset($order) && $order && isset($quote) && $quote && $quote->getId()) {
             $quote->setIsActive(false);
             $quote->save();
         }
@@ -474,9 +487,9 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
 
         $this->markOrderCanceled($responseData);
 
-        $orderIdStr = $responseData[ApiFields::OrderId] ?? '';
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
+        $parsed = $this->paymentHelper->parseGatewayOrderId($responseData[ApiFields::OrderId] ?? '');
+        $orderId = $parsed['increment_id'];
+        $order = $orderId !== '' ? $this->paymentHelper->getOrderByIncrementId($orderId) : null;
 
         return [
             'order_id' => $order ? $order->getId() : null,
@@ -588,10 +601,20 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
     private function markOrderCanceled(array $responseData): void
     {
         $isCreateOrderEnabled = $this->isCreateOrderEnabled() || $this->isIrisCreateOrderEnabled();
-        $orderIdStr = $responseData[ApiFields::OrderId] ?? '';
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
-        if ($isCreateOrderEnabled && $order && $order->getId()) {
+
+        // Only the order flow has something to cancel: with order creation disabled the
+        // quote is simply left active so the customer can retry from the cart.
+        if (!$isCreateOrderEnabled) {
+            return;
+        }
+
+        $incrementId = $this->paymentHelper->parseGatewayOrderId($responseData[ApiFields::OrderId] ?? '')['increment_id'];
+        if ($incrementId === '') {
+            return;
+        }
+
+        $order = $this->paymentHelper->getOrderByIncrementId($incrementId);
+        if ($order && $order->getId()) {
             $this->paymentHelper->markCanceledPayment($order, $responseData);
         }
     }
@@ -623,8 +646,17 @@ class BackgroundConfirmation extends Action implements CsrfAwareActionInterface,
             return null;
         }
 
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
+        $parsed = $this->paymentHelper->parseGatewayOrderId($orderIdStr);
+        $order = $parsed['increment_id'] !== ''
+            ? $this->paymentHelper->getOrderByIncrementId($parsed['increment_id'])
+            : null;
+
+        // With "Create order and hold stock" disabled the orderid carries the quote ID,
+        // so an already processed payment has to be recognised through the order that
+        // was created from that quote - otherwise this webhook places a second one.
+        if ((!$order || !$order->getId()) && $parsed['quote_id']) {
+            $order = $this->orderLookup->getLatestByQuoteId($parsed['quote_id'], false);
+        }
 
         if (!$order || !$order->getId()) {
             return null;

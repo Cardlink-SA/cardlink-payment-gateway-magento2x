@@ -9,6 +9,7 @@ use Cardlink\Checkout\Model\Config\Settings;
 use Cardlink\Checkout\Model\Config\SettingsApplePay;
 use Cardlink\Checkout\Model\Config\SettingsGooglePay;
 use Cardlink\Checkout\Model\Config\Source\TransactionEnvironments;
+use Cardlink\Checkout\Service\GatewayOrderId;
 use Magento\Sales\Block\Adminhtml\Order\View as OrderView;
 use Magento\Sales\Model\Order\Payment;
 
@@ -25,15 +26,23 @@ class HideVoidButtonPlugin
     private $logger;
 
     /**
+     * @var GatewayOrderId
+     */
+    private $gatewayOrderId;
+
+    /**
      * @param Data $dataHelper
      * @param Logger $logger
+     * @param GatewayOrderId $gatewayOrderId
      */
     public function __construct(
         Data $dataHelper,
-        Logger $logger
+        Logger $logger,
+        GatewayOrderId $gatewayOrderId
     ) {
         $this->dataHelper = $dataHelper;
         $this->logger = $logger;
+        $this->gatewayOrderId = $gatewayOrderId;
     }
 
     /**
@@ -101,12 +110,11 @@ class HideVoidButtonPlugin
      */
     private function isVoidable(Payment $payment, string $methodCode, string $incrementId): bool
     {
-        $orderId = (string) $payment->getCardlinkOrderId();
-        if ($orderId === '') {
-            $orderId = $incrementId;
-        }
-
-        if ($orderId === '') {
+        // The gateway only recognises the orderid sent with the original payment request,
+        // which is never the Magento increment ID. Without it there is nothing to query,
+        // so leave the button alone rather than querying a reference that cannot match.
+        $orderId = $this->gatewayOrderId->resolveForPayment($payment);
+        if ($orderId === null) {
             return true;
         }
 

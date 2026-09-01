@@ -173,10 +173,20 @@ class Cancel extends Action implements \Magento\Framework\App\PageCache\NotCache
     private function markOrderCanceled(array $responseData): void
     {
         $isCreateOrderEnabled = $this->isCreateOrderEnabled() || $this->isIrisCreateOrderEnabled();
-        $orderIdStr = $responseData[ApiFields::OrderId];
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
-        if ($isCreateOrderEnabled && $order && $order->getId()) {
+
+        // Only the order flow has something to cancel: with order creation disabled the
+        // quote is simply left active so the customer can retry from the cart.
+        if (!$isCreateOrderEnabled) {
+            return;
+        }
+
+        $incrementId = $this->paymentHelper->parseGatewayOrderId($responseData[ApiFields::OrderId])['increment_id'];
+        if ($incrementId === '') {
+            return;
+        }
+
+        $order = $this->paymentHelper->getOrderByIncrementId($incrementId);
+        if ($order && $order->getId()) {
             $this->paymentHelper->markCanceledPayment($order, $responseData);
         }
     }

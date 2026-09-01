@@ -30,10 +30,10 @@ class Adapter extends \Magento\Payment\Model\Method\Adapter
         $code,
         $formBlockType,
         $infoBlockType,
-        CommandPoolInterface $commandPool = null,
-        ValidatorPoolInterface $validatorPool = null,
-        CommandManagerInterface $commandExecutor = null,
-        LoggerInterface $logger = null
+        ?CommandPoolInterface $commandPool = null,
+        ?ValidatorPoolInterface $validatorPool = null,
+        ?CommandManagerInterface $commandExecutor = null,
+        ?LoggerInterface $logger = null
     ) {
         parent::__construct(
             $eventManager,

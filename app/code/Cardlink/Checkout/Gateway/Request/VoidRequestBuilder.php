@@ -3,6 +3,7 @@
 namespace Cardlink\Checkout\Gateway\Request;
 
 use Cardlink\Checkout\Gateway\Http\Client\TransactionClient;
+use Cardlink\Checkout\Service\GatewayOrderId;
 use Magento\Payment\Gateway\Request\BuilderInterface;
 use Magento\Payment\Gateway\Helper\SubjectReader;
 use Magento\Sales\Model\Order\Payment;
@@ -15,6 +16,21 @@ use Magento\Sales\Model\Order\Payment;
  */
 class VoidRequestBuilder implements BuilderInterface
 {
+    /**
+     * @var GatewayOrderId
+     */
+    private $gatewayOrderId;
+
+    /**
+     * Constructor.
+     *
+     * @param GatewayOrderId $gatewayOrderId
+     */
+    public function __construct(GatewayOrderId $gatewayOrderId)
+    {
+        $this->gatewayOrderId = $gatewayOrderId;
+    }
+
     /**
      * Builds request data.
      *
@@ -32,21 +48,12 @@ class VoidRequestBuilder implements BuilderInterface
         // Get the actual Magento order to avoid issues with third-party adapters
         $order = $payment->getOrder();
         
-        // Get the Cardlink order ID stored during payment response
-        // This is the order ID that Cardlink's system recognizes
-        $orderId = $payment->getCardlinkOrderId();
-        
-        if (empty($orderId)) {
-            // Fallback to Magento order increment ID if cardlink_order_id not set
-            $orderId = $order->getIncrementId();
-        }
-        
+        // The gateway only recognises the orderid sent with the original payment request,
+        // which is never the Magento increment ID.
+        $orderId = $this->gatewayOrderId->requireForPayment($payment, 'void');
+
         // Get amount from the actual order object to avoid adapter compatibility issues
         $amount = (float) $order->getGrandTotal();
-        
-        if (empty($orderId)) {
-            throw new \InvalidArgumentException('No order ID found for void operation');
-        }
 
         // Get the transaction ID for reference
         $transactionId = $payment->getCardlinkTxId() 

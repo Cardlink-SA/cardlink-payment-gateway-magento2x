@@ -269,26 +269,27 @@ class Response extends Action implements \Magento\Framework\App\PageCache\NotCac
     {
         $orderIdStr = $responseData[ApiFields::OrderId];
         $message = $responseData[ApiFields::Message] ?? '';
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
-        // Attempt to load the order by its increment ID
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
+        $parsed = $this->paymentHelper->parseGatewayOrderId($orderIdStr);
+        $orderId = $parsed['increment_id'];
+
+        // Attempt to load the order by its increment ID. With "Create order and hold
+        // stock" disabled there is none yet, and the orderid encodes the quote instead.
+        $order = $orderId !== '' ? $this->paymentHelper->getOrderByIncrementId($orderId) : null;
         if ($order && $order->getId()) {
-            $quoteId = $order->getQuoteId();
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $quoteFactory = $objectManager->get(\Magento\Quote\Model\QuoteFactory::class);
-            $quote = $quoteFactory->create()->load($quoteId);
+            $quote = $this->quoteFactory->create()->load($order->getQuoteId());
             // Set session variables
-            $this->checkoutSession->setLastQuoteId($quote->getId())
-                ->setLastSuccessQuoteId($quote->getId())
+            $this->checkoutSession->setLastQuoteId($order->getQuoteId())
+                ->setLastSuccessQuoteId($order->getQuoteId())
                 ->setLastOrderId($order->getId())
                 ->setLastRealOrderId($order->getIncrementId())
                 ->setLastOrderStatus($order->getStatus());
             $this->paymentHelper->markSuccessfulPayment($order, $responseData);
         } else {
             // If no order is found, treat it as a quote
-            $quote = $this->paymentHelper->getQuoteById($orderId);
+            $quote = $this->paymentHelper->getQuoteById($parsed['quote_id']);
             if ($quote && $quote->getIsActive() && $quote->getId()) {
                 $order = $this->createOrderFromQuote($quote->getId());
+                $orderId = $order->getIncrementId();
                 // Set session variables
                 $this->checkoutSession->setLastQuoteId($quote->getId())
                     ->setLastSuccessQuoteId($quote->getId())
@@ -296,10 +297,16 @@ class Response extends Action implements \Magento\Framework\App\PageCache\NotCac
                     ->setLastRealOrderId($order->getIncrementId())
                     ->setLastOrderStatus($order->getStatus());
                 $this->paymentHelper->markSuccessfulPayment($order, $responseData);
+            } else {
+                $this->logger->error(
+                    'Payment response: no order and no active quote found for gateway order ID ' . $orderIdStr
+                );
             }
         }
 
-        if (isset($order) && isset($quote)) {
+        // Guard on the quote ID as well: saving a quote that failed to load would insert
+        // an empty one instead of deactivating the customer's cart.
+        if (isset($order) && $order && isset($quote) && $quote && $quote->getId()) {
             $quote->setIsActive(false);
             $quote->save();
         }
@@ -371,10 +378,10 @@ class Response extends Action implements \Magento\Framework\App\PageCache\NotCac
      *
      * @param bool $success
      * @param string $message
-     * @param int $orderId
+     * @param int|string $orderId Order increment ID, or 0 when no order was resolved.
      * @return ResultInterface
      */
-    private function handleRedirect(bool $success, string $message, int $orderId): ResultInterface
+    private function handleRedirect(bool $success, string $message, $orderId): ResultInterface
     {
         if ($this->dataHelper->doCheckoutInIframe()) {
             $redirectUrl = $success
@@ -451,8 +458,8 @@ class Response extends Action implements \Magento\Framework\App\PageCache\NotCac
             return null;
         }
 
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
+        $incrementId = $this->paymentHelper->parseGatewayOrderId($orderIdStr)['increment_id'];
+        $order = $incrementId !== '' ? $this->paymentHelper->getOrderByIncrementId($incrementId) : null;
 
         if (!$order || !$order->getId()) {
             return null;
@@ -521,10 +528,20 @@ class Response extends Action implements \Magento\Framework\App\PageCache\NotCac
     private function markOrderCanceled(array $responseData): void
     {
         $isCreateOrderEnabled = $this->isCreateOrderEnabled() || $this->isIrisCreateOrderEnabled();
-        $orderIdStr = $responseData[ApiFields::OrderId];
-        $orderId = substr($orderIdStr, 0, strlen($orderIdStr) - ApiFields::OrderId_SuffixLength);
-        $order = $this->paymentHelper->getOrderByIncrementId($orderId);
-        if ($isCreateOrderEnabled && $order && $order->getId()) {
+
+        // Only the order flow has something to cancel: with order creation disabled the
+        // quote is simply left active so the customer can retry from the cart.
+        if (!$isCreateOrderEnabled) {
+            return;
+        }
+
+        $incrementId = $this->paymentHelper->parseGatewayOrderId($responseData[ApiFields::OrderId])['increment_id'];
+        if ($incrementId === '') {
+            return;
+        }
+
+        $order = $this->paymentHelper->getOrderByIncrementId($incrementId);
+        if ($order && $order->getId()) {
             $this->paymentHelper->markCanceledPayment($order, $responseData);
         }
     }
