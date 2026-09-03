@@ -88,6 +88,14 @@ class TransactionClient implements ClientInterface
         $this->logger->debug('=== CARDLINK GATEWAY REQUEST ===');
         $this->logger->debug('Request Data: ' . json_encode($request, JSON_PRETTY_PRINT));
 
+        // Magento's error handler turns every PHP diagnostic into an exception. Caught
+        // below, one raised *after* the request reached the gateway would report the
+        // transaction as failed even though the money had already moved - which is how a
+        // PHP 8.5 deprecation on curl_close() left captured orders stuck in "authorized".
+        // Whether a transaction succeeded is decided by the gateway's answer, never by
+        // PHP noise, so diagnostics are logged here instead of aborting the call.
+        $this->divertPhpDiagnosticsToLog();
+
         try {
             $paymentMethodCode = $request['payment_method_code'] ?? 'cardlink_checkout';
             $api = $this->createApiClient($paymentMethodCode);
@@ -153,9 +161,40 @@ class TransactionClient implements ClientInterface
                 'success' => false,
                 'error' => $e->getMessage()
             ];
+        } finally {
+            restore_error_handler();
         }
 
         return $response;
+    }
+
+    /**
+     * Send PHP diagnostics raised during a gateway call to the log rather than letting
+     * Magento's error handler convert them into exceptions.
+     *
+     * Only the non-fatal levels are taken over; anything PHP does not route through a
+     * userland handler - and anything outside this mask - is left alone. The handler is
+     * removed again by the caller's finally block, so it covers the gateway call only.
+     *
+     * @return void
+     */
+    private function divertPhpDiagnosticsToLog(): void
+    {
+        set_error_handler(
+            function ($errorNo, $errorStr, $errorFile, $errorLine) {
+                $this->logger->warning(sprintf(
+                    'PHP diagnostic during Cardlink gateway call, ignored: %s in %s on line %s',
+                    $errorStr,
+                    $errorFile,
+                    $errorLine
+                ));
+
+                return true;
+            },
+            E_DEPRECATED | E_USER_DEPRECATED
+                | E_NOTICE | E_USER_NOTICE
+                | E_WARNING | E_USER_WARNING
+        );
     }
 
     /**

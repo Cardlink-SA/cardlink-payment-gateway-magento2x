@@ -35,7 +35,14 @@ class AllowInlineScriptPlugin
                 // Match the inline-allow property regardless of exact naming
                 // (allowInline, inlineAllowed, isInlineAllowed, etc.)
                 if (stripos($prop->getName(), 'inline') !== false) {
-                    $prop->setAccessible(true);
+                    // Reflection reaches private members on its own since PHP 8.1, and
+                    // PHP 8.5 deprecates the call. Magento's error handler would turn
+                    // that deprecation into an exception and take the whole CSP
+                    // collection - so every page render - down with it.
+                    if (PHP_VERSION_ID < 80100) {
+                        $prop->setAccessible(true);
+                    }
+
                     $prop->setValue($newPolicy, true);
                     break;
                 }

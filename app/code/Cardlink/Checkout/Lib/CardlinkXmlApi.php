@@ -772,7 +772,17 @@ class CardlinkXmlApi
         $curlError = curl_error($ch);
         $curlErrno = curl_errno($ch);
 
-        curl_close($ch);
+        // curl_close() has had no effect since PHP 8.0, where curl_init() started returning
+        // a CurlHandle object that is released as soon as the last reference to it goes
+        // away, and PHP 8.5 deprecates the call outright. Magento's error handler turns
+        // that E_DEPRECATED into an exception, the gateway client catches it and reports a
+        // failed transaction - even though the request had already succeeded at the
+        // gateway. Only PHP 7, where the handle is a resource, still needs the close.
+        if (PHP_VERSION_ID < 80000) {
+            curl_close($ch);
+        }
+
+        unset($ch);
 
         $this->lastResponse = [
             'http_code' => $httpCode,
@@ -941,7 +951,7 @@ class CardlinkXmlApi
         $this->log('=== END PARSED DATA ===');
 
         // Determine success based on status
-        $status = $data['Status'] ?? $data['status'] ?? '';
+        $status = trim((string) ($data['Status'] ?? $data['status'] ?? ''));
         $this->log('Extracted Status: "' . $status . '"');
         
         $isSuccess = in_array(strtoupper($status), [
@@ -957,10 +967,15 @@ class CardlinkXmlApi
 
         $this->log('Is Success (based on status): ' . ($isSuccess ? 'YES' : 'NO'));
 
-        // Check for error responses
-        if (isset($data['ErrorCode']) || isset($data['errorCode'])) {
+        // Check for error responses. Some acquirer configurations answer a perfectly
+        // successful request with an empty <ErrorCode/> element, and extractNodeData()
+        // records that as an empty string - so testing with isset() alone would fail a
+        // transaction the gateway has already reported as CAPTURED.
+        $errorCode = trim((string) ($data['ErrorCode'] ?? $data['errorCode'] ?? ''));
+
+        if ($errorCode !== '') {
             $isSuccess = false;
-            $this->log('Error detected - ErrorCode present: ' . ($data['ErrorCode'] ?? $data['errorCode']));
+            $this->log('Error detected - ErrorCode present: ' . $errorCode);
         }
 
         $this->log('Final isSuccess: ' . ($isSuccess ? 'YES' : 'NO'));

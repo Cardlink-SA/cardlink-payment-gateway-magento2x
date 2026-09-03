@@ -9,6 +9,12 @@
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 ## Changelog
+- **1.3.4**
+  - Fix capture of a pre-authorisation failing under PHP 8.5 with "Deprecated Functionality: Function curl_close() is deprecated". The transaction completed at the gateway, but Magento reported an error and left the order in "Authorized - Pending Capture".
+  - A PHP notice raised during a gateway call is no longer treated as a failed transaction. Magento turns every PHP diagnostic into an exception, so one raised after the request had already reached the gateway reported the payment as failed even though it had succeeded.
+  - Fix a successful capture being rejected when the gateway answers with an empty `ErrorCode` element, as some acquirer configurations do.
+  - Fix "Deprecated Functionality: ReflectionProperty::setAccessible()" raised on every page render under PHP 8.5 by the CSP policy plugin.
+  - The admin order page no longer queries the gateway when there is no Void button to hide. That query is now capped at 5 seconds and its answer cached, so a slow or unreachable gateway can no longer stall the page.
 - **1.3.3**
   - Fix exception on the payment response page when "Create order and hold stock" is set to No. The order ID sent to the gateway carried its random suffix twice, so the response no longer resolved back to the quote and no order was created.
   - Fix "Original transaction is not found" (error code O2) on capture, refund and void. Stores upgraded from an earlier version never received the `cardlink_order_id` column, so the gateway transaction reference was lost on save. The column is now added on `bin/magento setup:upgrade`, and existing orders fall back to the reference recorded with the payment transaction.

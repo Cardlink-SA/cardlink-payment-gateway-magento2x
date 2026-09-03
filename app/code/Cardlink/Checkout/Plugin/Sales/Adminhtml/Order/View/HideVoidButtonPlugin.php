@@ -10,11 +10,39 @@ use Cardlink\Checkout\Model\Config\SettingsApplePay;
 use Cardlink\Checkout\Model\Config\SettingsGooglePay;
 use Cardlink\Checkout\Model\Config\Source\TransactionEnvironments;
 use Cardlink\Checkout\Service\GatewayOrderId;
+use Magento\Framework\App\CacheInterface;
 use Magento\Sales\Block\Adminhtml\Order\View as OrderView;
 use Magento\Sales\Model\Order\Payment;
 
 class HideVoidButtonPlugin
 {
+    /**
+     * Cache key prefix for a resolved voidability answer.
+     */
+    const CACHE_KEY_PREFIX = 'cardlink_voidable_';
+
+    /**
+     * Cache tag, so the answers can be flushed on their own.
+     */
+    const CACHE_TAG = 'CARDLINK_VOIDABILITY';
+
+    /**
+     * How long an answer from the gateway stays usable, in seconds.
+     */
+    const CACHE_LIFETIME = 300;
+
+    /**
+     * How long an unanswered query is remembered, in seconds. Kept short, but long
+     * enough that an unreachable gateway costs one timeout rather than one per view.
+     */
+    const FAILURE_CACHE_LIFETIME = 60;
+
+    /**
+     * Seconds to wait for the status call. The admin order page renders synchronously,
+     * so the library's 60 second default would stall the page for a full minute.
+     */
+    const API_TIMEOUT = 5;
+
     /**
      * @var Data
      */
@@ -31,18 +59,26 @@ class HideVoidButtonPlugin
     private $gatewayOrderId;
 
     /**
+     * @var CacheInterface
+     */
+    private $cache;
+
+    /**
      * @param Data $dataHelper
      * @param Logger $logger
      * @param GatewayOrderId $gatewayOrderId
+     * @param CacheInterface $cache
      */
     public function __construct(
         Data $dataHelper,
         Logger $logger,
-        GatewayOrderId $gatewayOrderId
+        GatewayOrderId $gatewayOrderId,
+        CacheInterface $cache
     ) {
         $this->dataHelper = $dataHelper;
         $this->logger = $logger;
         $this->gatewayOrderId = $gatewayOrderId;
+        $this->cache = $cache;
     }
 
     /**
@@ -67,6 +103,15 @@ class HideVoidButtonPlugin
 
             $methodCode = (string) $payment->getMethod();
             if (!$this->isSupportedMethod($methodCode)) {
+                return $result;
+            }
+
+            // Magento adds the button only for an order whose authorization transaction
+            // is still open, so for every other order there is no button to hide - and no
+            // reason to spend a synchronous gateway round trip establishing that. This is
+            // the common case: once an order is captured, cancelled or completed, the page
+            // renders without touching the network at all.
+            if (!$order->canVoidPayment()) {
                 return $result;
             }
 
@@ -118,7 +163,16 @@ class HideVoidButtonPlugin
             return true;
         }
 
+        $cacheKey = self::CACHE_KEY_PREFIX . hash('sha256', $methodCode . '|' . $orderId);
+        $cached = $this->cache->load($cacheKey);
+
+        if ($cached !== false && $cached !== null) {
+            return $cached === '1';
+        }
+
         $api = $this->createApiClient($methodCode);
+        $api->setTimeout(self::API_TIMEOUT);
+
         if ($this->dataHelper->logDebugInfoEnabled()) {
             $api->setDebug(true, function ($message) {
                 $this->logger->debug('[CardlinkXmlApi][AdminVoidCheck] ' . $message);
@@ -132,10 +186,20 @@ class HideVoidButtonPlugin
                 $incrementId,
                 $statusResponse->getError()
             ));
+
+            $this->cache->save('0', $cacheKey, [self::CACHE_TAG], self::FAILURE_CACHE_LIFETIME);
+
             return false;
         }
 
-        return $statusResponse->canVoid();
+        $voidable = $statusResponse->canVoid();
+
+        // Both answers are safe to keep briefly: a stale "voidable" only means the gateway
+        // rejects the void with its own message, and a stale "not voidable" leaves the
+        // refund path and the merchant portal untouched.
+        $this->cache->save($voidable ? '1' : '0', $cacheKey, [self::CACHE_TAG], self::CACHE_LIFETIME);
+
+        return $voidable;
     }
 
     /**
